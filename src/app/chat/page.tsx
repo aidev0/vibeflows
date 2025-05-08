@@ -10,9 +10,25 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      // Create a new chat and redirect to it
-      const createNewChat = async () => {
+      const initializeChat = async () => {
         try {
+          // First check for existing chats
+          const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
+          if (!chatsResponse.ok) {
+            throw new Error('Failed to fetch chats');
+          }
+          
+          const chatsData = await chatsResponse.json();
+          const existingChats = chatsData.chats || [];
+
+          if (existingChats.length > 0) {
+            // If there are existing chats, redirect to the most recent one
+            const mostRecentChat = existingChats[0]; // Already sorted by date in the API
+            router.push(`/chat/${mostRecentChat.id}`);
+            return;
+          }
+
+          // Only create a new chat if there are no existing chats
           const response = await fetch('/api/chat/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -31,11 +47,11 @@ export default function ChatPage() {
           // Redirect to the new chat
           router.push(`/chat/${data.chatId}`);
         } catch (error) {
-          console.error('Error creating chat:', error);
+          console.error('Error initializing chat:', error);
         }
       };
 
-      createNewChat();
+      initializeChat();
     }
   }, [user, isLoading, router]);
 
