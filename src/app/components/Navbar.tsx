@@ -29,12 +29,12 @@ export default function Navbar() {
                 <span className="text-gray-300">
                   Let's dream big, {user.name || user.nickname || user.email}!
                 </span>
-                <Link
+                <a
                   href="/api/auth/logout"
                   className="text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors"
                 >
                   Sign Out
-                </Link>
+                </a>
               </div>
             )}
           </div>
