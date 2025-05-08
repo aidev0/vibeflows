@@ -6,7 +6,7 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
-import { Send, Bot, User, Mic, MicOff } from 'lucide-react';
+import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon } from 'lucide-react';
 
 interface Node {
   id: string;
@@ -38,21 +38,46 @@ export default function ChatPage() {
   const [showDAG, setShowDAG] = useState(false);
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [lastWorkflowNodes, setLastWorkflowNodes] = useState<Node[]>([]);
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [showChatList, setShowChatList] = useState(false);
+  const [allChats, setAllChats] = useState<{ id: string; title: string; created_at: string; messageCount: number }[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [editingChatId, setEditingChatId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState('');
 
   useEffect(() => {
     const initializeChat = async () => {
       if (!user?.sub) return;
 
       try {
-        // If no chatId, create a new chat
+        // If no chatId or chatId is 'new', check for existing chats
         if (!chatId || chatId === 'new') {
-          console.log('Creating new chat...');
+          console.log('Checking for existing chats...');
+          
+          // Fetch all chats for the user
+          const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
+          if (!chatsResponse.ok) {
+            throw new Error('Failed to fetch chats');
+          }
+          
+          const chatsData = await chatsResponse.json();
+          const existingChats = chatsData.chats || [];
+
+          if (existingChats.length > 0) {
+            // If there are existing chats, redirect to the most recent one
+            const mostRecentChat = existingChats[0]; // Already sorted by date in the API
+            console.log('Redirecting to most recent chat:', mostRecentChat.id);
+            router.push(`/chat/${mostRecentChat.id}`);
+            return;
+          }
+
+          // Only create a new chat if there are no existing chats
+          console.log('No existing chats, creating new chat...');
           const response = await fetch('/api/chat/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,8 +117,9 @@ export default function ChatPage() {
           throw new Error('Invalid messages format in response');
         }
 
-        // Add system message if this is a new chat with no messages
-        if (data.messages.length === 0) {
+        // Only add system message if this is a new chat with no messages
+        // and it was just created (chatId === 'new')
+        if (data.messages.length === 0 && chatId === 'new') {
           const systemMessage: Message = {
             id: Date.now().toString(),
             chatId: chatId as string,
@@ -393,6 +419,105 @@ Current user message: "${text}"`
     }
   };
 
+  // Add useEffect to fetch all chats
+  useEffect(() => {
+    const fetchAllChats = async () => {
+      if (!user?.sub) {
+        console.log('No user ID available');
+        return;
+      }
+      try {
+        console.log('Fetching chats for user:', user.sub);
+        const response = await fetch(`/api/chats?userId=${user.sub}`);
+        console.log('Chat fetch response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Received chats data:', data);
+          
+          if (!data.chats || !Array.isArray(data.chats)) {
+            console.error('Invalid chats data format:', data);
+            return;
+          }
+
+          // Sort chats by creation date, newest first
+          const sortedChats = data.chats.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          console.log('Sorted chats:', sortedChats);
+          setAllChats(sortedChats);
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to fetch chats:', errorData);
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+
+    if (user?.sub) {
+      fetchAllChats();
+    }
+  }, [user?.sub]);
+
+  // Add function to delete chat
+  const handleDeleteChat = async (chatIdToDelete: string) => {
+    if (!user?.sub) return;
+    
+    try {
+      const response = await fetch(`/api/chat/delete?chatId=${chatIdToDelete}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete chat');
+      }
+
+      // Remove chat from list
+      setAllChats(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+
+      // If we're currently in the deleted chat, redirect to new chat
+      if (chatIdToDelete === chatId) {
+        router.push('/chat/new');
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
+
+  // Add function to rename chat
+  const handleRenameChat = async (chatIdToRename: string, newTitle: string) => {
+    if (!user?.sub) return;
+    
+    try {
+      const response = await fetch('/api/chat/rename', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          chatId: chatIdToRename,
+          title: newTitle,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to rename chat');
+      }
+
+      // Update chat in list
+      setAllChats(prev => prev.map(chat => 
+        chat.id === chatIdToRename 
+          ? { ...chat, title: newTitle }
+          : chat
+      ));
+
+      setEditingChatId(null);
+    } catch (error) {
+      console.error('Error renaming chat:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
@@ -410,6 +535,145 @@ Current user message: "${text}"`
       <Navbar />
       {/* Main Content Area - Flex container */}
       <div className="flex-1 flex relative min-h-0 pt-16">
+        {/* Chat List Sidebar */}
+        <div className={`fixed inset-y-0 left-0 w-64 bg-gray-800 transform transition-transform duration-300 ease-in-out z-40 ${
+          showChatList ? 'translate-x-0' : '-translate-x-full'
+        }`}>
+          <div className="p-4 border-b border-gray-700 flex justify-between items-center">
+            <h2 className="text-lg font-semibold">Your Chats</h2>
+            <button
+              onClick={() => setShowChatList(false)}
+              className="p-2 hover:bg-gray-700 rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="overflow-y-auto h-[calc(100vh-4rem)]">
+            <button
+              onClick={() => {
+                router.push('/chat/new');
+                setShowChatList(false);
+              }}
+              className="w-full p-4 text-left hover:bg-gray-700 transition-colors border-b border-gray-700"
+            >
+              <div className="font-medium text-indigo-400">+ New Chat</div>
+            </button>
+            {allChats.length === 0 ? (
+              <div className="p-4 text-gray-400 text-center">
+                No chats found
+              </div>
+            ) : (
+              allChats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`group relative border-b border-gray-700 ${
+                    chat.id === chatId ? 'bg-gray-700' : ''
+                  }`}
+                >
+                  {editingChatId === chat.id ? (
+                    <div className="p-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleRenameChat(chat.id, editingTitle);
+                            } else if (e.key === 'Escape') {
+                              setEditingChatId(null);
+                            }
+                          }}
+                          className="flex-1 bg-gray-600 text-white px-2 py-1 rounded"
+                          autoFocus
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRenameChat(chat.id, editingTitle);
+                          }}
+                          className="p-1 hover:bg-gray-600 rounded"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingChatId(null);
+                          }}
+                          className="p-1 hover:bg-gray-600 rounded"
+                        >
+                          <XIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => {
+                          router.push(`/chat/${chat.id}`);
+                          setShowChatList(false);
+                        }}
+                        className="w-full p-4 text-left hover:bg-gray-700 transition-colors"
+                      >
+                        <div className="font-medium truncate">{chat.title || 'Untitled Chat'}</div>
+                        <div className="flex justify-between items-center mt-1">
+                          <div className="text-sm text-gray-400">
+                            {new Date(chat.created_at).toLocaleString([], { 
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                          <div className="text-xs text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
+                            {chat.messageCount} {chat.messageCount === 1 ? 'message' : 'messages'}
+                          </div>
+                        </div>
+                      </button>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingChatId(chat.id);
+                            setEditingTitle(chat.title || '');
+                          }}
+                          className="p-1 hover:bg-gray-600 rounded"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (window.confirm('Are you sure you want to delete this chat?')) {
+                              handleDeleteChat(chat.id);
+                            }
+                          }}
+                          className="p-1 hover:bg-red-600 rounded"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Menu Button */}
+        <button
+          onClick={() => setShowChatList(!showChatList)}
+          className="fixed top-20 left-4 z-50 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
         {/* Chat Section - Scrollable */}
         <div className={`flex-1 p-2 md:p-4 space-y-8 overflow-y-auto bg-gray-800 transition-all duration-300 ${
           showDAG ? 'w-1/3 opacity-100' : 'w-full opacity-100'
@@ -435,14 +699,34 @@ Current user message: "${text}"`
                   {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
                   {msg.nodeList && (
                     <div className="mt-3">
-                      <ul className="list-none space-y-2 pl-1">
-                        {msg.nodeList.map((node: Node, index) => (
-                          <li key={index} className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow">
-                            <span className="font-mono text-xs text-indigo-300 mr-2">[{index + 1}]</span>
-                            {node.data.label}
-                          </li>
-                        ))}
-                      </ul>
+                      <button
+                        onClick={() => {
+                          if (msg.nodeList) {
+                            setCurrentWorkflow({
+                              id: Date.now().toString(),
+                              user_id: user?.sub || '',
+                              nodes: msg.nodeList as Node[],
+                              created_at: new Date(),
+                              message_id: msg.id,
+                              chat_id: chatId as string
+                            });
+                            setShowDAG(true);
+                          }
+                        }}
+                        className="w-full"
+                      >
+                        <ul className="list-none space-y-2 pl-1">
+                          {msg.nodeList.map((node: Node, index) => (
+                            <li 
+                              key={index} 
+                              className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors cursor-pointer"
+                            >
+                              <span className="font-mono text-xs text-indigo-300 mr-2">[{index + 1}]</span>
+                              {node.data.label}
+                            </li>
+                          ))}
+                        </ul>
+                      </button>
                     </div>
                   )}
                   <p className="text-xs text-gray-400 mt-3 text-right">
