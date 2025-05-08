@@ -6,6 +6,7 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/components/WorkflowDAG';
 import { Send, Bot, User, Mic, MicOff } from 'lucide-react';
+import Navbar from '@/app/components/Navbar';
 
 interface Node {
   id: string;
@@ -324,12 +325,10 @@ Current user message: "${text}"`
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white font-sans">
-      {/* Fixed Header */}
-      <header className="flex-none p-8 border-b border-gray-700/50 bg-gradient-to-r from-gray-900 via-gray-850 to-gray-900 shadow-2xl">
-      </header>
+      <Navbar />
 
       {/* Main Content Area - Flex container */}
-      <div className="flex-1 flex relative min-h-0">
+      <div className="flex-1 flex relative min-h-0 pt-16">
         {/* Chat Section - Scrollable */}
         <div className={`flex-1 p-4 md:p-6 space-y-6 overflow-y-auto bg-gray-800 transition-all duration-300 ${
           showDAG ? 'w-1/3 opacity-100' : 'w-full opacity-100'

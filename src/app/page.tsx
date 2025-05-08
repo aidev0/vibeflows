@@ -2,36 +2,22 @@
 
 import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import Navbar from './components/Navbar';
 
 export default function Home() {
   const { user, isLoading } = useUser();
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white">
-      {/* Fixed Header */}
-      <header className="fixed top-0 left-0 w-full z-50 bg-gray-900 border-b border-gray-800 flex items-center justify-between px-6 py-3 shadow-lg">
-        <div className="text-2xl font-bold text-white tracking-wide">VibeFlows AI</div>
-        <div className="flex items-center gap-4">
-          {isLoading ? (
-            <span className="text-gray-400">Loading...</span>
-          ) : user ? (
-            <>
-              <span className="text-gray-200">Welcome, {user.name || user.email || 'User'}!</span>
-              <a href="/api/auth/logout" className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition">Logout</a>
-            </>
-          ) : (
-            <a href="/api/auth/login" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition">Login</a>
-          )}
-        </div>
-      </header>
+      <Navbar />
       {/* Main landing content with padding top for header */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 text-center">
         <div className="inline-block mb-4 px-4 py-2 rounded-full bg-blue-100 text-blue-700 font-medium">
           Powered by Vibe Coding
         </div>
         <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6 leading-tight">
-          <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">AI</span> Workflow Automation <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> made for</span>
-          <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Non-Technicals</span>
+        Workflow Automation
+          <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> AI made for Non-Technicals</span> 
         </h1>
         <p className="text-xl md:text-2xl text-gray-800 mb-12 max-w-3xl mx-auto leading-relaxed">
           Finally, a workflow automation tool that gives you enterprise-grade power without the complexity. Just tell our AI what you want to automate, and it handles the rest.
