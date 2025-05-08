@@ -2,10 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Bot, User, Maximize2, Minimize2 } from 'lucide-react'; // Using lucide-react for icons
-import WorkflowDAG from '../components/WorkflowDAG';
+import WorkflowDAG from '@/app/components/WorkflowDAG';
+import Navbar from '@/app/components/Navbar';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { useRouter } from 'next/navigation';
-import Navbar from '../components/Navbar';
 
 // Add global styles for animations
 const globalStyles = `
@@ -441,141 +441,127 @@ Feel free to start with a simple greeting or directly describe what you'd like t
 
   if (isLoading) {
     return (
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-white text-lg">Loading...</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-lg">Loading...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-red-500">Error: {error.message}</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-red-500">Error: {error.message}</div>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen">
-        <Navbar />
-        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
-          <div className="text-white text-lg">Redirecting to login...</div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <div className="text-white text-lg">Redirecting to login...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
-      <Navbar />
-      <main className="h-[calc(100vh-4rem)] mt-16 pt-8 pb-4">
-        <div className="flex h-full">
-          {/* Chat Section */}
-          <div 
-            className={`flex flex-col h-full ${
-              showDAG 
-                ? isDAGMaximized 
-                  ? 'w-0 overflow-hidden' 
-                  : 'w-1/3'
-                : 'w-full'
-            } transition-all duration-300 ease-in-out bg-gray-900 rounded-lg`}
-          >
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === user?.sub ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
-                      message.sender === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-700 text-white'
-                    }`}
-                  >
-                    <div className="whitespace-pre-wrap">{message.text}</div>
-                    {message.sender === 'ai' && workflows.find(w => w.message_id === message.id) && (
-                      <div className="mt-3 pt-3 border-t border-gray-600">
-                        <button
-                          onClick={() => handleWorkflowClick(workflows.find(w => w.message_id === message.id)!)}
-                          className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-2"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-                          </svg>
-                          View Workflow
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input Section */}
-            <div className="border-t border-gray-700 p-4">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={isListening ? "Listening..." : "Type your message..."}
-                  className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isListening}
-                />
-                <button
-                  onClick={() => handleSendMessage(inputText)}
-                  disabled={!inputText.trim() || isListening}
-                  className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleMicClick}
-                  className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
-                    isListening
-                      ? 'bg-red-600 text-white animate-pulse'
-                      : 'bg-gray-700 text-white hover:bg-gray-600'
-                  }`}
-                  title={isListening ? "Stop listening" : "Start voice input"}
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* DAG Section */}
-          {showDAG && currentWorkflow && (
-            <div 
-              className={`relative ${
-                isDAGMaximized 
-                  ? 'w-full' 
-                  : 'w-2/3'
-              } transition-all duration-300 ease-in-out`}
+    <div className="flex h-screen bg-gray-900">
+      {/* Chat Section */}
+      <div 
+        className={`flex flex-col ${
+          showDAG 
+            ? isDAGMaximized 
+              ? 'w-0 overflow-hidden' 
+              : 'w-1/3'
+            : 'w-full'
+        } transition-all duration-300 ease-in-out`}
+      >
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === user?.sub ? 'justify-end' : 'justify-start'}`}
             >
-              <button
-                onClick={toggleDAGMaximize}
-                className="absolute top-4 right-4 z-10 bg-gray-800 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
+              <div
+                className={`max-w-[80%] rounded-lg p-4 ${
+                  message.sender === 'user'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-white'
+                }`}
               >
-                {isDAGMaximized ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-              </button>
-              <div className="h-full w-full">
-                <WorkflowDAG steps={currentWorkflow.nodes} />
+                <div className="whitespace-pre-wrap">{message.text}</div>
+                {message.sender === 'ai' && workflows.find(w => w.message_id === message.id) && (
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <button
+                      onClick={() => handleWorkflowClick(workflows.find(w => w.message_id === message.id)!)}
+                      className="text-sm text-blue-400 hover:text-blue-300 flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+                      </svg>
+                      View Workflow
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          ))}
+          <div ref={messagesEndRef} />
         </div>
-      </main>
+
+        {/* Input Section */}
+        <div className="border-t border-gray-700 p-4">
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder={isListening ? "Listening..." : "Type your message..."}
+              className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isListening}
+            />
+            <button
+              onClick={() => handleSendMessage(inputText)}
+              disabled={!inputText.trim() || isListening}
+              className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handleMicClick}
+              className={`flex items-center justify-center p-2 rounded-lg transition-colors ${
+                isListening
+                  ? 'bg-red-600 text-white animate-pulse'
+                  : 'bg-gray-700 text-white hover:bg-gray-600'
+              }`}
+              title={isListening ? "Stop listening" : "Start voice input"}
+            >
+              <Mic className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* DAG Section */}
+      {showDAG && currentWorkflow && (
+        <div 
+          className={`relative ${
+            isDAGMaximized 
+              ? 'w-full' 
+              : 'w-2/3'
+          } transition-all duration-300 ease-in-out`}
+        >
+          <button
+            onClick={toggleDAGMaximize}
+            className="absolute top-4 right-4 z-10 bg-gray-800 text-white p-2 rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            {isDAGMaximized ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </button>
+          <div className="h-full w-full">
+            <WorkflowDAG steps={currentWorkflow.nodes} />
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
-import WorkflowDAG from '@/components/WorkflowDAG';
-import { Send, Bot, User, Mic, MicOff } from 'lucide-react';
+import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
+import { Send, Bot, User, Mic, MicOff } from 'lucide-react';
 
 interface Node {
   id: string;
@@ -326,9 +326,8 @@ Current user message: "${text}"`
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white font-sans">
       <Navbar />
-
       {/* Main Content Area - Flex container */}
-      <div className="flex-1 flex relative min-h-0 pt-16">
+      <div className="flex-1 flex relative min-h-0">
         {/* Chat Section - Scrollable */}
         <div className={`flex-1 p-4 md:p-6 space-y-6 overflow-y-auto bg-gray-800 transition-all duration-300 ${
           showDAG ? 'w-1/3 opacity-100' : 'w-full opacity-100'
