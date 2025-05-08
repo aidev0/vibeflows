@@ -51,7 +51,7 @@ export default function ChatPage() {
 
       try {
         // If no chatId, create a new chat
-        if (!chatId) {
+        if (!chatId || chatId === 'new') {
           console.log('Creating new chat...');
           const response = await fetch('/api/chat/create', {
             method: 'POST',
@@ -409,16 +409,16 @@ Current user message: "${text}"`
     <div className="flex flex-col h-screen bg-gray-900 text-white font-sans">
       <Navbar />
       {/* Main Content Area - Flex container */}
-      <div className="flex-1 flex relative min-h-0 pt-8">
+      <div className="flex-1 flex relative min-h-0 pt-4">
         {/* Chat Section - Scrollable */}
-        <div className={`flex-1 p-4 md:p-6 space-y-12 overflow-y-auto bg-gray-800 transition-all duration-300 ${
+        <div className={`flex-1 p-2 md:p-4 space-y-8 overflow-y-auto bg-gray-800 transition-all duration-300 ${
           showDAG ? 'w-1/3 opacity-100' : 'w-full opacity-100'
         }`}>
-          <div className="pt-4">
+          <div className="pt-2">
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex items-end space-x-3 ${
+                className={`flex items-end space-x-3 mb-6 ${
                   msg.sender === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
@@ -426,7 +426,7 @@ Current user message: "${text}"`
                   <Bot className="w-8 h-8 text-indigo-400 flex-shrink-0 mb-1" />
                 )}
                 <div
-                  className={`p-4 md:p-6 rounded-xl max-w-lg shadow-lg ${
+                  className={`p-5 md:p-7 rounded-xl max-w-lg shadow-lg ${
                     msg.sender === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
@@ -434,10 +434,10 @@ Current user message: "${text}"`
                 >
                   {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
                   {msg.nodeList && (
-                    <div className="mt-2">
-                      <ul className="list-none space-y-1.5 pl-1">
+                    <div className="mt-3">
+                      <ul className="list-none space-y-2 pl-1">
                         {msg.nodeList.map((node: Node, index) => (
-                          <li key={index} className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-2 rounded-md shadow">
+                          <li key={index} className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow">
                             <span className="font-mono text-xs text-indigo-300 mr-2">[{index + 1}]</span>
                             {node.data.label}
                           </li>
@@ -445,7 +445,7 @@ Current user message: "${text}"`
                       </ul>
                     </div>
                   )}
-                  <p className="text-xs text-gray-400 mt-2 text-right">
+                  <p className="text-xs text-gray-400 mt-3 text-right">
                     {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
