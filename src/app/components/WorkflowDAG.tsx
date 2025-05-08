@@ -1,7 +1,7 @@
 // /components/WorkflowDAG.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -19,7 +19,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'; // Base React Flow styles
 import dagre from 'dagre'; // For automatic layout
 import { Node as ChatNodeType } from '@/models/Chat'; // Your input step type
-import { Maximize2, Minimize2, LogOut, UserCircle2 } from 'lucide-react'; // Added more icons
+import { Maximize2, Minimize2, LogOut, UserCircle2, Lock } from 'lucide-react'; // Added more icons
 import { useUser } from '@auth0/nextjs-auth0/client'; // For user info in header
 
 interface WorkflowDAGProps {
@@ -43,7 +43,7 @@ const nodeTypes = {
       <div style={{
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
-        background: 'linear-gradient(145deg, #2c3e50 0%, #34495e 100%)',
+        background: 'linear-gradient(145deg, #1a365d 0%, #2d4a7c 100%)',
         borderRadius: '16px',
         padding: '16px 20px',
         color: '#ecf0f1',
@@ -63,7 +63,7 @@ const nodeTypes = {
           style={{ background: '#7f8c8d', width: 12, height: 12, borderRadius: 4, border: '1px solid #bdc3c7' }}
         />
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-          {IconComponent && <IconComponent style={{ marginRight: '12px', width: '24px', height: '24px', color: '#3498db' }} />}
+          {IconComponent && <IconComponent style={{ marginRight: '12px', width: '24px', height: '24px', color: '#60a5fa' }} />}
           <div style={{ 
             fontSize: '18px', 
             fontWeight: 700, 
@@ -173,8 +173,16 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode[]>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge[]>([]);
   const [maximized, setMaximized] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const { user, isLoading: isUserLoading } = useUser();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+
+  // Custom node change handler that respects the lock state
+  const handleNodesChange = useCallback((changes: any[]) => {
+    if (!isLocked) {
+      onNodesChange(changes);
+    }
+  }, [isLocked, onNodesChange]);
 
   // Add window resize handler
   useEffect(() => {
@@ -341,7 +349,7 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
@@ -350,9 +358,35 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         maxZoom={2}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         attributionPosition="bottom-right"
+        style={{ background: 'transparent' }}
+        nodesDraggable={!isLocked}
+        nodesConnectable={!isLocked}
+        elementsSelectable={!isLocked}
       >
         <Background variant={BackgroundVariant.Dots} gap={16} size={1.5} color="#4a627a" />
-        <Controls showInteractive={false} />
+        <Controls showInteractive={false}>
+          <button
+            onClick={() => setIsLocked(!isLocked)}
+            className="react-flow__controls-button"
+            title={isLocked ? "Unlock Layout" : "Lock Layout"}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-700">
+              <g>
+                {isLocked ? (
+                  <>
+                    <path d="M12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z" fill="currentColor"/>
+                    <path d="M18 8H17V6C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6V8H6C4.9 8 4 8.9 4 10V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V10C20 8.9 19.1 8 18 8ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17ZM15.1 8H8.9V6C8.9 4.29 10.29 2.9 12 2.9C13.71 2.9 15.1 4.29 15.1 6V8Z" fill="currentColor"/>
+                  </>
+                ) : (
+                  <>
+                    <path d="M12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z" fill="currentColor"/>
+                    <path d="M18 8H17V6C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6H8.9C8.9 4.29 10.29 2.9 12 2.9C13.71 2.9 15.1 4.29 15.1 6V8H6C4.9 8 4 8.9 4 10V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V10C20 8.9 19.1 8 18 8ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17Z" fill="currentColor"/>
+                  </>
+                )}
+              </g>
+            </svg>
+          </button>
+        </Controls>
       </ReactFlow>
     </div>
   );

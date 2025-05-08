@@ -411,7 +411,7 @@ Current user message: "${text}"`
       {/* Main Content Area - Flex container */}
       <div className="flex-1 flex relative min-h-0 pt-8">
         {/* Chat Section - Scrollable */}
-        <div className={`flex-1 p-4 md:p-6 space-y-8 overflow-y-auto bg-gray-800 transition-all duration-300 ${
+        <div className={`flex-1 p-4 md:p-6 space-y-12 overflow-y-auto bg-gray-800 transition-all duration-300 ${
           showDAG ? 'w-1/3 opacity-100' : 'w-full opacity-100'
         }`}>
           <div className="pt-4">
@@ -426,7 +426,7 @@ Current user message: "${text}"`
                   <Bot className="w-8 h-8 text-indigo-400 flex-shrink-0 mb-1" />
                 )}
                 <div
-                  className={`p-3 md:p-4 rounded-xl max-w-lg shadow-lg ${
+                  className={`p-4 md:p-6 rounded-xl max-w-lg shadow-lg ${
                     msg.sender === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
