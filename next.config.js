@@ -5,12 +5,19 @@ const nextConfig = {
     serverActions: true,
   },
   async headers() {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://vibeflows.app',
+      'https://vibeflows-c28a3602302a.herokuapp.com',
+      'https://vibeflows.us.auth0.com'
+    ];
+
     return [
       {
         source: '/api/:path*',
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: 'https://vibeflows.us.auth0.com' },
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigins.join(',') },
           { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
@@ -19,7 +26,7 @@ const nextConfig = {
         source: '/api/auth/:path*',
         headers: [
           { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: 'https://vibeflows.us.auth0.com' },
+          { key: 'Access-Control-Allow-Origin', value: allowedOrigins.join(',') },
           { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT,OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization' },
         ],
