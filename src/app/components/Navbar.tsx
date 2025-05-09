@@ -15,7 +15,8 @@ export default function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center gap-2">
             <Link href="/" className="text-xl md:text-2xl font-bold text-white hover:text-blue-400 transition-colors">
-              VibeFlows.AI
+              <span className="hidden md:inline">vibeflows.app: Your Workflow Automation AI.</span>
+              <span className="md:hidden">VibeFlows AI</span>
             </Link>
           </div>
           
