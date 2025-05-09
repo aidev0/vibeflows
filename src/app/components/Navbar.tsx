@@ -17,12 +17,12 @@ export default function Navbar() {
           </div>
           <div className="flex items-center">
             {!isLoading && !user && (
-              <Link
+              <a
                 href="/api/auth/login"
                 className="text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors"
               >
                 Sign In
-              </Link>
+              </a>
             )}
             {user && (
               <div className="flex items-center gap-4">

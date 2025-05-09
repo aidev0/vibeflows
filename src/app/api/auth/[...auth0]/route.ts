@@ -9,7 +9,7 @@ const getBaseUrl = () => {
 
 export const GET = handleAuth({
   login: handleLogin({
-    returnTo: '/chat'
+    returnTo: getBaseUrl()
   }),
   logout: handleLogout({
     returnTo: getBaseUrl()
