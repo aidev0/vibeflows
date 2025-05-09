@@ -96,7 +96,6 @@ export default function Home() {
             <div className="flex gap-4 md:gap-6">
               <Link href="/privacy" className="text-gray-700 hover:text-blue-600 transition-colors text-sm md:text-base">Privacy</Link>
               <Link href="/terms" className="text-gray-700 hover:text-blue-600 transition-colors text-sm md:text-base">Terms</Link>
-              <Link href="/chat?new=true&type=support" className="text-gray-700 hover:text-blue-600 transition-colors text-sm md:text-base">Support</Link>
             </div>
           </div>
         </div>
