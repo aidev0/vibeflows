@@ -15,7 +15,7 @@ export default function ChatPage() {
         try {
           // Check if we should force a new chat
           const forceNew = searchParams.get('new') === 'true';
-          const isFromContact = searchParams.get('from') === 'contact';
+          const isSupport = searchParams.get('type') === 'support';
           
           if (!forceNew) {
             // First check for existing chats
@@ -42,7 +42,10 @@ export default function ChatPage() {
           const response = await fetch('/api/chat/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: 'New Chat' }),
+            body: JSON.stringify({ 
+              title: isSupport ? 'Support Chat' : 'New Workflow',
+              type: isSupport ? 'support' : 'workflow'
+            }),
           });
 
           if (!response.ok) {
@@ -54,18 +57,18 @@ export default function ChatPage() {
             throw new Error('Invalid response format');
           }
 
-          // Add welcome message based on source
+          // Add welcome message
           const welcomeMessage = {
             chatId: data.chatId,
             message: {
               id: Date.now().toString(),
               chatId: data.chatId,
-              text: isFromContact ? "How can I help you?" : "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
+              text: isSupport ? "How can I help you?" : "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
               sender: 'ai',
               timestamp: new Date(),
               type: 'simple_text',
-              systemMessage: isFromContact ? 
-                "You are a helpful customer support assistant. Your goal is to help users with their questions and concerns. Be friendly, professional, and focused on providing excellent customer service." :
+              systemMessage: isSupport ? 
+                "You are a helpful support assistant. Your goal is to help users with their questions and concerns. Be friendly, professional, and concise in your responses." :
                 "You are VibeFlows AI, a helpful, insightful, and proactive workflow automation assistant. Your primary goal is to help non-technical users define and automate workflows. You should be conversational and guide the user."
             }
           };
