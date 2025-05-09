@@ -661,7 +661,12 @@ Current user message: "${text}"`
                     </div>
                   )}
                   <p className="text-xs text-gray-400 mt-3 text-right">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(msg.timestamp).toLocaleString([], { 
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
                   </p>
                 </div>
                 {msg.sender === 'user' && (
