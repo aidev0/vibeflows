@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { title } = await request.json();
+    const { title, type } = await request.json();
     const userId = session.user.sub;
 
     if (!userId) {
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const result = await db.collection('chats').insertOne({
       user_id: userId,
       title: title || 'New Chat',
+      type: type || 'workflow',
       created_at: new Date(),
       updated_at: new Date()
     });

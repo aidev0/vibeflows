@@ -46,7 +46,7 @@ export default function TeamPage() {
               If you're interested in joining our team, reach out to us through our chat interface.
             </p>
             <a
-              href="/chat?new=true&from=contact"
+              href="/support"
               className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-xl text-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
             >
               Contact Us

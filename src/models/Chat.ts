@@ -26,6 +26,7 @@ export interface Chat {
   id: string;
   userId: string;
   title: string;
+  type: 'workflow' | 'support';
   createdAt: Date;
   updatedAt: Date;
 } 
