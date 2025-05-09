@@ -87,10 +87,24 @@ export async function POST(req: NextRequest) {
 
       // Format conversation history for Gemini
       console.log('Formatting conversation history...');
-      const conversationHistory: Array<{ role: "user" | "model"; parts: Part[] }> = messages.map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }));
+      const conversationHistory: Array<{ role: "user" | "model"; parts: Part[] }> = [];
+
+      // Find the system message if it exists
+      const systemMessage = messages.find((msg: any) => msg.systemMessage);
+      if (systemMessage) {
+        conversationHistory.push({
+          role: "model",
+          parts: [{ text: systemMessage.systemMessage }]
+        });
+      }
+
+      // Add the rest of the conversation history
+      messages.forEach((msg: any) => {
+        conversationHistory.push({
+          role: msg.role === 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }]
+        });
+      });
 
       // Add the current message
       conversationHistory.push({

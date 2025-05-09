@@ -63,7 +63,10 @@ export default function ChatPage() {
               text: isFromContact ? "How can I help you?" : "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
               sender: 'ai',
               timestamp: new Date(),
-              type: 'simple_text'
+              type: 'simple_text',
+              systemMessage: isFromContact ? 
+                "You are a helpful customer support assistant. Your goal is to help users with their questions and concerns. Be friendly, professional, and focused on providing excellent customer service." :
+                "You are VibeFlows AI, a helpful, insightful, and proactive workflow automation assistant. Your primary goal is to help non-technical users define and automate workflows. You should be conversational and guide the user."
             }
           };
 

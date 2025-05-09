@@ -19,6 +19,7 @@ export interface Message {
   timestamp: Date;
   nodeList?: any[];
   type?: 'workflow_plan' | 'simple_text';
+  systemMessage?: string;
 }
 
 export interface Chat {
