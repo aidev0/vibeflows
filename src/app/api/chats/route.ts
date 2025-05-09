@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       return {
         id: chat._id.toString(),
         title: chat.title || 'Untitled Chat',
+        type: chat.type || 'workflow',
         created_at: chat.created_at || chat._id.getTimestamp(),
         messageCount
       };
