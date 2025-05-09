@@ -21,7 +21,13 @@ export default function Navbar() {
           </div>
           
           {/* Desktop menu */}
-          <div className="hidden md:flex items-center">
+          <div className="hidden md:flex items-center space-x-6">
+            <Link href="/features" className="text-gray-300 hover:text-white transition-colors">
+              Features
+            </Link>
+            <Link href="/team" className="text-gray-300 hover:text-white transition-colors">
+              Team
+            </Link>
             {!isLoading && !user && (
               <a
                 href="/api/auth/login"
@@ -59,16 +65,24 @@ export default function Navbar() {
         {/* Mobile menu */}
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-700">
+            <div className="space-y-2 px-4">
+              <Link href="/features" className="block text-gray-300 hover:text-white transition-colors">
+                Features
+              </Link>
+              <Link href="/team" className="block text-gray-300 hover:text-white transition-colors">
+                Team
+              </Link>
+            </div>
             {!isLoading && !user && (
               <a
                 href="/api/auth/login"
-                className="block text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors mb-2"
+                className="block text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors mt-4"
               >
                 Sign In
               </a>
             )}
             {user && (
-              <div className="space-y-2">
+              <div className="space-y-2 mt-4">
                 <div className="text-gray-300 px-4 py-2">
                   Let's dream big, {user.name || user.nickname || user.email}!
                 </div>

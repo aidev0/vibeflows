@@ -1,34 +1,44 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 
 export default function ChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading } = useUser();
 
   useEffect(() => {
     if (!isLoading && user) {
       const initializeChat = async () => {
         try {
-          // First check for existing chats
-          const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
-          if (!chatsResponse.ok) {
-            throw new Error('Failed to fetch chats');
-          }
+          // Check if we should force a new chat
+          const forceNew = searchParams.get('new') === 'true';
+          const isFromContact = searchParams.get('from') === 'contact';
           
-          const chatsData = await chatsResponse.json();
-          const existingChats = chatsData.chats || [];
+          if (!forceNew) {
+            // First check for existing chats
+            const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
+            if (!chatsResponse.ok) {
+              throw new Error('Failed to fetch chats');
+            }
+            
+            const chatsData = await chatsResponse.json();
+            const existingChats = chatsData.chats || [];
 
-          if (existingChats.length > 0) {
-            // If there are existing chats, redirect to the most recent one
-            const mostRecentChat = existingChats[0]; // Already sorted by date in the API
-            router.push(`/chat/${mostRecentChat.id}`);
+            if (existingChats.length > 0) {
+              // If there are existing chats, redirect to the most recent one
+              const mostRecentChat = existingChats[0]; // Already sorted by date in the API
+              router.push(`/chat/${mostRecentChat.id}`);
+              return;
+            }
+            // If no existing chats and not forcing new, redirect to home
+            router.push('/');
             return;
           }
 
-          // Only create a new chat if there are no existing chats
+          // Create a new chat
           const response = await fetch('/api/chat/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -44,6 +54,25 @@ export default function ChatPage() {
             throw new Error('Invalid response format');
           }
 
+          // Add welcome message based on source
+          const welcomeMessage = {
+            chatId: data.chatId,
+            message: {
+              id: Date.now().toString(),
+              chatId: data.chatId,
+              text: isFromContact ? "How can I help you?" : "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
+              sender: 'ai',
+              timestamp: new Date(),
+              type: 'simple_text'
+            }
+          };
+
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(welcomeMessage),
+          });
+
           // Redirect to the new chat
           router.push(`/chat/${data.chatId}`);
         } catch (error) {
@@ -53,7 +82,7 @@ export default function ChatPage() {
 
       initializeChat();
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, searchParams]);
 
   if (isLoading) {
     return (

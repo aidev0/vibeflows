@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
@@ -34,6 +34,7 @@ export default function ChatPage() {
   const { chatId } = useParams();
   const { user, isLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [showDAG, setShowDAG] = useState(false);
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
@@ -55,46 +56,9 @@ export default function ChatPage() {
       if (!user?.sub) return;
 
       try {
-        // If no chatId or chatId is 'new', check for existing chats
+        // If no chatId or chatId is 'new', redirect to the main chat page
         if (!chatId || chatId === 'new') {
-          console.log('Checking for existing chats...');
-          
-          // Fetch all chats for the user
-          const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
-          if (!chatsResponse.ok) {
-            throw new Error('Failed to fetch chats');
-          }
-          
-          const chatsData = await chatsResponse.json();
-          const existingChats = chatsData.chats || [];
-
-          if (existingChats.length > 0) {
-            // If there are existing chats, redirect to the most recent one
-            const mostRecentChat = existingChats[0]; // Already sorted by date in the API
-            console.log('Redirecting to most recent chat:', mostRecentChat.id);
-            router.push(`/chat/${mostRecentChat.id}`);
-            return;
-          }
-
-          // Only create a new chat if there are no existing chats
-          console.log('No existing chats, creating new chat...');
-          const response = await fetch('/api/chat/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: 'New Chat' }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to create chat');
-          }
-
-          const data = await response.json();
-          if (!data?.chatId) {
-            throw new Error('Invalid response format');
-          }
-
-          // Redirect to the new chat
-          router.push(`/chat/${data.chatId}`);
+          router.push('/chat');
           return;
         }
 
@@ -115,47 +79,6 @@ export default function ChatPage() {
         if (!data.messages || !Array.isArray(data.messages)) {
           console.error('Invalid messages format:', data);
           throw new Error('Invalid messages format in response');
-        }
-
-        // Only add system message if this is a new chat with no messages
-        // and it was just created (chatId === 'new')
-        if (data.messages.length === 0 && chatId === 'new') {
-          const systemMessage: Message = {
-            id: Date.now().toString(),
-            chatId: chatId as string,
-            text: `👋 Hi ${user.name || 'there'}! I'm your AI workflow automation assistant. I'll help you create and manage your automation workflows.
-
-I can help you with:
-1. Creating new workflows
-2. Modifying existing workflows
-3. Explaining how workflows work
-4. Troubleshooting workflow issues
-
-Feel free to start with a simple greeting or directly describe what you'd like to automate. I'll guide you through the process step by step!`,
-            sender: 'ai',
-            timestamp: new Date(),
-            type: 'simple_text'
-          };
-
-          // Save system message
-          try {
-            const saveResponse = await fetch('/api/chat', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chatId,
-                message: systemMessage,
-              }),
-            });
-
-            if (!saveResponse.ok) {
-              console.error('Failed to save system message');
-            } else {
-              data.messages = [systemMessage];
-            }
-          } catch (saveError) {
-            console.error('Error saving system message:', saveError);
-          }
         }
 
         setMessages(data.messages);
@@ -476,9 +399,17 @@ Current user message: "${text}"`
       // Remove chat from list
       setAllChats(prev => prev.filter(chat => chat.id !== chatIdToDelete));
 
-      // If we're currently in the deleted chat, redirect to new chat
+      // If we're currently in the deleted chat, redirect to the most recent chat
       if (chatIdToDelete === chatId) {
-        router.push('/chat/new');
+        // Get the most recent chat from the remaining chats
+        const remainingChats = allChats.filter(chat => chat.id !== chatIdToDelete);
+        if (remainingChats.length > 0) {
+          const mostRecentChat = remainingChats[0]; // Already sorted by date
+          router.push(`/chat/${mostRecentChat.id}`);
+        } else {
+          // If no chats left, redirect to home
+          router.push('/');
+        }
       }
     } catch (error) {
       console.error('Error deleting chat:', error);
@@ -551,7 +482,7 @@ Current user message: "${text}"`
           <div className="overflow-y-auto h-[calc(100vh-4rem)]">
             <button
               onClick={() => {
-                router.push('/chat/new');
+                router.push('/chat?new=true');
                 setShowChatList(false);
               }}
               className="w-full p-4 text-left hover:bg-gray-700 transition-colors border-b border-gray-700"
@@ -792,4 +723,4 @@ Current user message: "${text}"`
       </div>
     </div>
   );
-} 
+}
