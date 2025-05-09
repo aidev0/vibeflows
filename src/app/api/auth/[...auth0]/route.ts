@@ -1,9 +1,17 @@
 import { handleAuth, handleLogin, handleLogout } from '@auth0/nextjs-auth0';
 
 const getBaseUrl = () => {
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-  if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
-  if (process.env.NODE_ENV === 'development') return 'http://localhost:3000';
+  // For production (Heroku)
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+  
+  // For development
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+  
+  // Default to the custom domain
   return 'https://vibeflows.app';
 };
 
