@@ -21,42 +21,17 @@ export async function POST(request: NextRequest) {
     await client.connect();
     const db = client.db('vibeflows');
 
-    // Create new chat with complete user information
-    const chatId = new ObjectId();
-    const now = new Date();
-    
+    // Create new chat
     const result = await db.collection('chats').insertOne({
-      _id: chatId,
-      id: chatId.toString(), // Add string ID for easier reference
       user_id: userId,
-      // Store both prefixed and unprefixed versions for compatibility
-      user_name: session.user.name,
-      name: session.user.name,
-      user_email: session.user.email,
-      email: session.user.email,
-      user_nickname: session.user.nickname,
-      nickname: session.user.nickname,
-      user_picture: session.user.picture,
-      picture: session.user.picture,
       title: title || 'New Chat',
       type: type || 'workflow',
-      created_at: now,
-      updated_at: now,
-      messageCount: 0,
-      lastMessageAt: now
+      created_at: new Date(),
+      updated_at: new Date()
     });
 
-    console.log('Created new chat:', chatId.toString());
-    
-    // Return the formatted chat object
     return NextResponse.json({ 
-      chat: {
-        id: chatId.toString(),
-        title: title || 'New Chat',
-        created_at: now.toISOString(),
-        messageCount: 0,
-        lastMessageAt: now.toISOString()
-      },
+      chatId: result.insertedId.toString(),
       success: true 
     });
 

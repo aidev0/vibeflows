@@ -1,71 +1,94 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { useChats } from '@/app/context/ChatContext';
-import Navbar from '@/app/components/Navbar';
 
 export default function ChatPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading } = useUser();
-  const { setChats, setIsLoading } = useChats();
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadRecentChat = async () => {
-      if (!user?.sub) return;
-
-      try {
-        setIsLoading(true);
-        const response = await fetch(`/api/chats/${user.sub}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch recent chat');
-        }
-        const data = await response.json();
-        
-        // Load chats into context
-        if (data.chats && Array.isArray(data.chats)) {
-          setChats(data.chats);
+    if (!isLoading && user) {
+      const initializeChat = async () => {
+        try {
+          // Check if we should force a new chat
+          const forceNew = searchParams.get('new') === 'true';
+          const isSupport = searchParams.get('type') === 'support';
           
-          if (data.chats.length > 0) {
-            // Redirect to the most recent chat
-            router.push(`/chat/${data.chats[0].id}`);
-          } else {
-            // No chats found, create a new one
-            const createResponse = await fetch('/api/chat/create', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                title: 'New Chat',
-                type: 'workflow',
-                user_id: user.sub,
-              }),
-            });
-            if (!createResponse.ok) {
-              throw new Error('Failed to create new chat');
+          if (!forceNew) {
+            // First check for existing chats
+            const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
+            if (!chatsResponse.ok) {
+              throw new Error('Failed to fetch chats');
             }
-            const newChat = await createResponse.json();
-            setChats([newChat.chat]);
-            router.push(`/chat/${newChat.chat.id}`);
-          }
-        } else {
-          throw new Error('Invalid chat data format');
-        }
-      } catch (error) {
-        console.error('Error loading recent chat:', error);
-        setError('Failed to load chat. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+            
+            const chatsData = await chatsResponse.json();
+            const existingChats = chatsData.chats || [];
 
-    if (!isLoading && user?.sub) {
-      loadRecentChat();
+            if (existingChats.length > 0) {
+              // If there are existing chats, redirect to the most recent one
+              const mostRecentChat = existingChats[0]; // Already sorted by date in the API
+              router.push(`/chat/${mostRecentChat.id}`);
+              return;
+            }
+            // If no existing chats and not forcing new, redirect to home
+            router.push('/');
+            return;
+          }
+
+          // Create a new chat
+          const response = await fetch('/api/chat/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              title: isSupport ? 'Support Chat' : 'New Workflow',
+              type: isSupport ? 'support' : 'workflow'
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to create chat');
+          }
+
+          const data = await response.json();
+          if (!data?.chatId) {
+            throw new Error('Invalid response format');
+          }
+
+          // Add welcome message
+          const welcomeMessage = {
+            chatId: data.chatId,
+            message: {
+              id: Date.now().toString(),
+              chatId: data.chatId,
+              text: isSupport ? "How can I help you?" : "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
+              sender: 'ai',
+              timestamp: new Date(),
+              type: 'simple_text',
+              systemMessage: isSupport ? 
+                "You are a helpful support assistant. Your goal is to help users with their questions and concerns. Be friendly, professional, and concise in your responses." :
+                "You are VibeFlows AI, a helpful, insightful, and proactive workflow automation assistant. Your primary goal is to help non-technical users define and automate workflows. You should be conversational and guide the user."
+            }
+          };
+
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(welcomeMessage),
+          });
+
+          // Redirect to the new chat
+          router.push(`/chat/${data.chatId}`);
+        } catch (error) {
+          console.error('Error initializing chat:', error);
+        }
+      };
+
+      initializeChat();
     }
-  }, [user, isLoading, router, setChats, setIsLoading]);
+  }, [user, isLoading, router, searchParams]);
 
   if (isLoading) {
     return (
@@ -80,20 +103,8 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-white">
-      <Navbar />
-      <div className="flex-1 p-4 md:p-8 pt-20">
-        <div className="max-w-4xl mx-auto">
-          {error && (
-            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
-              {error}
-            </div>
-          )}
-          <div className="text-center py-12 text-gray-400">
-            Redirecting to your chat...
-          </div>
-        </div>
-      </div>
+    <div className="flex items-center justify-center min-h-screen bg-gray-900">
+      <div className="text-white text-xl">Creating new chat...</div>
     </div>
   );
 } 
