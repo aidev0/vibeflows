@@ -322,7 +322,7 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
 
   const toggleMaximize = () => {
     if (maximized) {
-      // When minimizing, set to 2/3 size
+      // When minimizing, set to 2/3 size (1/3 for chat, 2/3 for dag)
       setMaximized(false);
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -330,13 +330,21 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         width: width * (2/3),
         height: height * (2/3)
       });
+      // Wait for chat to be visible before fitting
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 300);
     } else {
-      // When maximizing, set to full size
+      // When maximizing, set to full window size (no chat visible)
       setMaximized(true);
       setDimensions({
         width: window.innerWidth,
         height: window.innerHeight
       });
+      // Fit immediately when maximizing
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
     }
   };
 
