@@ -7,6 +7,8 @@ import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
 import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon, Layout } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Components } from 'react-markdown';
 
 interface Node {
   id: string;
@@ -640,7 +642,22 @@ Current user message: "${text}"`
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
                   }`}
                 >
-                  {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
+                  {msg.text && (
+                    <div className="text-sm md:text-base prose prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          strong: ({children}) => <span className="font-bold text-white">{children}</span>,
+                          code: ({children}) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-indigo-300 font-mono text-sm">{children}</code>,
+                          p: ({children}) => <p className="leading-relaxed whitespace-pre-line">{children}</p>,
+                          ol: ({children}) => <ol className="list-decimal pl-6 space-y-1">{children}</ol>,
+                          ul: ({children}) => <ul className="list-disc pl-6 space-y-1">{children}</ul>,
+                          li: ({children}) => <li className="leading-relaxed">{children}</li>
+                        }}
+                      >
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                   {msg.nodeList && (
                     <div className="mt-3 border-t border-gray-600 pt-3">
                       <div className="flex items-center justify-between mb-2">
