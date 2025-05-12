@@ -182,22 +182,6 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { fitView } = useReactFlow();
 
-  // Add window resize handler
-  useEffect(() => {
-    const updateDimensions = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      setDimensions({
-        width: maximized ? width : Math.min(width * 0.8, 1200),
-        height: maximized ? height : Math.min(height * 0.8, 800)
-      });
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, [maximized]);
-
   // Add fit view effect when nodes change
   useEffect(() => {
     if (rfNodes.length > 0) {
@@ -207,12 +191,37 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
     }
   }, [rfNodes, fitView]);
 
+  // Add fit view effect when maximized state changes
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [maximized, rfNodes, fitView]);
+
   // Custom node change handler that respects the lock state
   const handleNodesChange = useCallback((changes: any[]) => {
     if (!isLocked) {
       onNodesChange(changes);
     }
   }, [isLocked, onNodesChange]);
+
+  // Add window resize handler
+  useEffect(() => {
+    const updateDimensions = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setDimensions({
+        width: maximized ? width : width * (2/3),
+        height: maximized ? height : height * (2/3)
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [maximized]);
 
   useEffect(() => {
     const timestamp = new Date().toLocaleTimeString();
@@ -312,9 +321,23 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   }, [steps, setRfNodes, setRfEdges]);
 
   const toggleMaximize = () => {
-    setMaximized(!maximized);
-    // Trigger a resize event to update dimensions
-    window.dispatchEvent(new Event('resize'));
+    if (maximized) {
+      // When minimizing, set to 2/3 size
+      setMaximized(false);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setDimensions({
+        width: width * (2/3),
+        height: height * (2/3)
+      });
+    } else {
+      // When maximizing, set to full size
+      setMaximized(true);
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    }
   };
 
   // Safely get the label for the header
