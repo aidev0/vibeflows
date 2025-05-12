@@ -403,10 +403,14 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         style={{ background: '#1a1a1a' }}
-        nodesDraggable={!isLocked}
-        nodesConnectable={!isLocked}
-        elementsSelectable={!isLocked}
       >
+        <Background 
+          variant={BackgroundVariant.Dots} 
+          gap={16} 
+          size={1.5} 
+          color="#4a627a"
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+        />
         <Controls showInteractive={false}>
           <button
             onClick={() => setIsLocked(!isLocked)}
