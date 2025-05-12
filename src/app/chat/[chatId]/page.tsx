@@ -332,15 +332,17 @@ Current user message: "${text}"`
         }),
       });
 
+      // Automatically show DAG if there are nodes
       if (nodes && nodes.length > 0) {
-        setCurrentWorkflow({
+        const workflow = {
           id: Date.now().toString(),
           user_id: user.sub,
           nodes,
           created_at: new Date(),
           message_id: aiMessage.id,
           chat_id: chatId as string
-        });
+        };
+        setCurrentWorkflow(workflow);
         setShowDAG(true);
       }
     } catch (error) {
@@ -718,8 +720,8 @@ Current user message: "${text}"`
 
         {/* DAG Visualization Section */}
         {showDAG && currentWorkflow && (
-          <div className="w-2/3 border-l border-gray-700 bg-gray-800 relative">
-            <div className="h-[calc(100vh-12rem)]">
+          <div className="w-2/3 border-l border-gray-700 bg-gray-800 relative h-[calc(100vh-5rem)]">
+            <div className="h-full overflow-hidden">
               <WorkflowDAG 
                 steps={currentWorkflow.nodes} 
                 onClose={() => setShowDAG(false)}

@@ -1,7 +1,7 @@
 // /components/WorkflowDAG.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -15,6 +15,8 @@ import ReactFlow, {
   Handle,      // << CRITICAL: Ensure Handle is imported
   Node as RFNode,
   Edge as RFEdge,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css'; // Base React Flow styles
 import dagre from 'dagre'; // For automatic layout
@@ -171,13 +173,32 @@ const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[]) => {
   };
 };
 
-const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
+const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode[]>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge[]>([]);
   const [maximized, setMaximized] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const { user, isLoading: isUserLoading } = useUser();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const { fitView } = useReactFlow();
+
+  // Add fit view effect when nodes change
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [rfNodes, fitView]);
+
+  // Add fit view effect when maximized state changes
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [maximized, rfNodes, fitView]);
 
   // Custom node change handler that respects the lock state
   const handleNodesChange = useCallback((changes: any[]) => {
@@ -355,17 +376,22 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={{ padding: 0.2, duration: 800 }}
         minZoom={0.1}
-        maxZoom={2}
+        maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        attributionPosition="bottom-right"
-        style={{ background: 'transparent' }}
+        style={{ background: '#1a1a1a' }}
         nodesDraggable={!isLocked}
         nodesConnectable={!isLocked}
         elementsSelectable={!isLocked}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1.5} color="#4a627a" />
+        <Background 
+          variant={BackgroundVariant.Dots} 
+          gap={16} 
+          size={1.5} 
+          color="#4a627a"
+          style={{ width: '100%', height: '100%' }}
+        />
         <Controls showInteractive={false}>
           <button
             onClick={() => setIsLocked(!isLocked)}
@@ -391,6 +417,14 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         </Controls>
       </ReactFlow>
     </div>
+  );
+};
+
+const WorkflowDAG: React.FC<WorkflowDAGProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowDAGInner {...props} />
+    </ReactFlowProvider>
   );
 };
 
