@@ -27,8 +27,8 @@ interface WorkflowDAGProps {
   onClose?: () => void; // Optional: If you want a close button for maximized view
 }
 
-const NODE_WIDTH = 280; // Increased for better readability
-const NODE_HEIGHT = 120; // Increased for better readability
+const NODE_WIDTH = 400;
+const NODE_HEIGHT = 180;
 
 // 1. Define the stylish custom node with Handles
 const nodeTypes = {
@@ -78,15 +78,17 @@ const nodeTypes = {
         </div>
         {data.description && (
           <div style={{ 
-            fontSize: '14px', 
+            fontSize: '16px',
             color: '#bdc3c7', 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             display: '-webkit-box', 
-            WebkitLineClamp: 2, 
+            WebkitLineClamp: 4,
             WebkitBoxOrient: 'vertical',
             lineHeight: '1.4',
-            letterSpacing: '0.3px'
+            letterSpacing: '0.3px',
+            marginTop: '8px',
+            maxHeight: '100px'
           }}>
             {data.description}
           </div>
@@ -109,18 +111,18 @@ const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[]) => {
   dagreGraph.setGraph({
     rankdir: 'LR',
     align: 'UL',
-    nodesep: 150,
-    ranksep: 150,
-    marginx: 50,
-    marginy: 50,
+    nodesep: 200, // Adjusted for 3 nodes per row
+    ranksep: 250, // Keep vertical spacing
+    marginx: 100,
+    marginy: 100,
     acyclicer: 'greedy',
     ranker: 'network-simplex'
   });
 
   // Calculate grid layout
-  const nodesPerRow = 3;
-  const horizontalSpacing = 150;
-  const verticalSpacing = 150;
+  const nodesPerRow = 3; // Changed back to 3 nodes per row
+  const horizontalSpacing = 200; // Adjusted for 3 nodes per row
+  const verticalSpacing = 250; // Keep vertical spacing
 
   nodes.forEach((node, index) => {
     const row = Math.floor(index / nodesPerRow);

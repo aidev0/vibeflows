@@ -16,7 +16,8 @@ interface Chat {
 }
 
 export default function UserChatsPage() {
-  const { userId } = useParams();
+  const params = useParams();
+  const userId = params.userId as string;
   const { user, isLoading: isUserLoading } = useUser();
   const router = useRouter();
   const [chats, setChats] = useState<Chat[]>([]);
@@ -31,7 +32,8 @@ export default function UserChatsPage() {
 
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/chats/${userId}`);
+        console.log('Fetching chats for user:', { userId, currentUser: user.sub });
+        const response = await fetch(`/api/chats/${userId}?userId=${user.sub}`);
         
         if (!response.ok) {
           if (response.status === 401) {
@@ -46,6 +48,7 @@ export default function UserChatsPage() {
         }
 
         const data = await response.json();
+        console.log('Received chats data:', data);
         setChats(data.chats || []);
       } catch (error) {
         console.error('Error fetching chats:', error);
