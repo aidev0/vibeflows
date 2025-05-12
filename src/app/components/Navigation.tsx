@@ -3,10 +3,15 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import { usePathname } from 'next/navigation';
+
+const ADMIN_ID = process.env.NEXT_PUBLIC_ADMIN_ID;
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user } = useUser();
+  const pathname = usePathname();
+  const isAdmin = user?.sub === ADMIN_ID;
 
   return (
     <nav className="bg-white shadow-md">
@@ -19,35 +24,95 @@ export default function Navigation() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link 
-              href="/chat?new=true" 
-              className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:opacity-90 transition-all transform hover:scale-105 shadow-lg relative z-50"
-            >
-              New Chat
-            </Link>
-            <div className="relative">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-gray-700 hover:text-blue-600 transition-colors"
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <Link
+                  href="/chat"
+                  className={`text-sm ${
+                    pathname === '/chat'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  AI
+                </Link>
+                {isAdmin && (
+                  <Link
+                    href="/users"
+                    className={`text-sm ${
+                      pathname === '/users'
+                        ? 'text-indigo-600'
+                        : 'text-gray-700 hover:text-gray-900'
+                    }`}
+                  >
+                    Users
+                  </Link>
+                )}
+                <Link
+                  href="/features"
+                  className={`text-sm ${
+                    pathname === '/features'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Features
+                </Link>
+                <Link
+                  href="/about"
+                  className={`text-sm ${
+                    pathname === '/about'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  About
+                </Link>
+                <Link
+                  href="/team"
+                  className={`text-sm ${
+                    pathname === '/team'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Team
+                </Link>
+                <Link
+                  href="/privacy"
+                  className={`text-sm ${
+                    pathname === '/privacy'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Privacy
+                </Link>
+                <Link
+                  href="/security"
+                  className={`text-sm ${
+                    pathname === '/security'
+                      ? 'text-indigo-600'
+                      : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Security
+                </Link>
+                <Link
+                  href="/api/auth/logout"
+                  className="text-sm text-gray-700 hover:text-gray-900"
+                >
+                  Logout
+                </Link>
+              </div>
+            ) : (
+              <Link
+                href="/api/auth/login"
+                className="text-sm text-gray-700 hover:text-gray-900"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-
-              {isMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-                  {user ? (
-                    <>
-                      <Link href="/chat" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Chats</Link>
-                      <Link href="/api/auth/logout" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</Link>
-                    </>
-                  ) : (
-                    <Link href="/api/auth/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Login</Link>
-                  )}
-                </div>
-              )}
-            </div>
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </div>

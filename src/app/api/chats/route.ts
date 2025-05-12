@@ -1,65 +1,60 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/mongodb';
 import { getSession } from '@auth0/nextjs-auth0';
-import { MongoClient } from 'mongodb';
+import { headers } from 'next/headers';
 
-export async function GET(request: NextRequest) {
-  let client;
+export async function GET(request: Request) {
   try {
-    const session = await getSession(request, new NextResponse());
+    const headersList = headers();
+    const session = await getSession(request, { headers: headersList });
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.sub;
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing user ID' }, { status: 400 });
+    const currentUserId = session.user.sub;
+    const isAdmin = currentUserId === process.env.ADMIN_ID;
+
+    // Only allow admin to view all chats
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    client = new MongoClient(process.env.MONGODB_URI!);
-    await client.connect();
+    const { client } = await connectToDatabase();
     const db = client.db('vibeflows');
     
-    // Get all chats for the user
+    // Get all chats, sorted by lastMessageAt
     const chats = await db.collection('chats')
-      .find({ user_id: userId })
+      .find({})
+      .sort({ lastMessageAt: -1 })
       .toArray();
 
-    // Get latest message and message count for each chat
-    const chatsWithDetails = await Promise.all(chats.map(async (chat) => {
-      // Get the latest message for this chat
-      const latestMessage = await db.collection('messages')
-        .find({ chatId: chat._id.toString() })
-        .sort({ timestamp: -1 })
-        .limit(1)
-        .toArray();
+    // Get all users
+    const users = await db.collection('users').find({}).toArray();
+    const userMap = new Map(users.map(user => [user.sub, user]));
 
-      // Get total message count
-      const messageCount = await db.collection('messages')
-        .countDocuments({ chatId: chat._id.toString() });
-      
-      return {
+    // Group chats by user
+    const userChats: { [key: string]: { user: any; chats: any[] } } = {};
+    chats.forEach(chat => {
+      const userId = chat.user_id;
+      if (!userChats[userId]) {
+        userChats[userId] = {
+          user: userMap.get(userId) || { name: 'Unknown User', email: 'unknown@example.com' },
+          chats: []
+        };
+      }
+      userChats[userId].chats.push({
         id: chat._id.toString(),
         title: chat.title || 'Untitled Chat',
-        type: chat.type || 'workflow',
         created_at: chat.created_at || chat._id.getTimestamp(),
-        messageCount,
-        lastMessageAt: latestMessage[0]?.timestamp || chat.created_at || chat._id.getTimestamp()
-      };
-    }));
+        messageCount: chat.messageCount || 0,
+        lastMessageAt: chat.lastMessageAt || chat.created_at || chat._id.getTimestamp(),
+        user_id: chat.user_id
+      });
+    });
 
-    // Sort chats by last message timestamp, newest first
-    const sortedChats = chatsWithDetails.sort((a, b) => 
-      new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
-    );
-
-    return NextResponse.json({ chats: sortedChats });
-
+    return NextResponse.json({ userChats });
   } catch (error) {
     console.error('Error fetching chats:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-  } finally {
-    if (client) {
-      await client.close();
-    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 } 

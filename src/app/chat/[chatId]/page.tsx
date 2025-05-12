@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
-import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon } from 'lucide-react';
+import { Send, Bot, User, Menu, X } from 'lucide-react';
 import { useChats } from '@/app/context/ChatContext';
 
 interface Node {
@@ -31,105 +31,32 @@ interface Workflow {
   chat_id: string;
 }
 
-interface Chat {
-  id: string;
-  title: string;
-  created_at: string;
-  messageCount: number;
-  lastMessageAt: string;
-}
-
-// Add type definitions for SpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-interface SpeechRecognitionEvent {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-  message: string;
-}
-
 export default function ChatPage() {
   const { chatId } = useParams();
   const { user, isLoading: isUserLoading } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [showDAG, setShowDAG] = useState(false);
   const [currentWorkflow, setCurrentWorkflow] = useState<Workflow | null>(null);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [lastWorkflowNodes, setLastWorkflowNodes] = useState<Node[]>([]);
   const [inputText, setInputText] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
-  const { chats, updateChat, removeChat } = useChats();
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<typeof window.SpeechRecognition | null>(null);
-  const [editingChatId, setEditingChatId] = useState<string | null>(null);
-  const [editingTitle, setEditingTitle] = useState('');
+  const { chats } = useChats();
 
   useEffect(() => {
     const initializeChat = async () => {
       if (!user?.sub) return;
 
       try {
-        // If no chatId or chatId is 'new', redirect to the main chat page
-        if (!chatId || chatId === 'new') {
-          router.push('/chat');
-          return;
-        }
-
-        // Check if the chat exists in our context
-        const existingChat = chats.find(chat => chat.id === chatId);
-        if (!existingChat) {
-          console.error('Chat not found in context');
-          router.push('/chat');
+        // If no chatId, redirect to the chats page
+        if (!chatId) {
+          router.push('/chats');
           return;
         }
 
         // Load messages for this chat
-        console.log('Loading messages for chat...', { chatId, userId: user.sub });
-        const response = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+        console.log('Loading messages for chat...', { chatId });
+        const response = await fetch(`/api/chat/${chatId}`);
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -176,96 +103,7 @@ export default function ChatPage() {
     if (user?.sub) {
       initializeChat();
     }
-  }, [chatId, user?.sub, router, chats]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognitionAPI) {
-        const recognition = new SpeechRecognitionAPI();
-        recognitionRef.current = recognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-
-        recognition.onresult = (event: SpeechRecognitionEvent) => {
-          const transcript = Array.from(event.results)
-            .map(result => result[0].transcript)
-            .join('');
-          setInputText(transcript);
-        };
-
-        recognition.onerror = (event: SpeechRecognitionEvent) => {
-          console.error('Speech recognition error:', event.error);
-          setIsListening(false);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-      }
-    }
-  }, []);
-
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const formData = new FormData();
-        formData.append('audio', audioBlob);
-
-        try {
-          const response = await fetch('/api/speech-to-text', {
-            method: 'POST',
-            body: formData,
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to convert speech to text');
-          }
-
-          const { text } = await response.json();
-          setInputText(text);
-        } catch (error) {
-          console.error('Error converting speech to text:', error);
-        }
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Error accessing microphone:', error);
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const toggleListening = () => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
-
-    if (isListening) {
-      recognition.stop();
-    } else {
-      recognition.start();
-      setIsListening(true);
-    }
-  };
+  }, [chatId, user?.sub, router]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -301,7 +139,7 @@ export default function ChatPage() {
         }),
       });
 
-      // Get AI response with chat history
+      // Get AI response
       const aiResponse = await fetch('/api/ai', {
         method: 'POST',
         headers: {
@@ -314,18 +152,7 @@ export default function ChatPage() {
           messages: messages.map(msg => ({
             role: msg.sender === 'user' ? 'user' : 'assistant',
             content: msg.text
-          })),
-          fullPrompt: `You are VibeFlows AI, a helpful, insightful, and proactive workflow automation assistant.
-Your primary goal is to help non-technical users define and automate workflows. You should be conversational and guide the user.
-
-Interaction Flow:
-1.  If the user's request is clear and provides enough detail for a specific workflow, break it down into actionable steps ("nodes"). Respond with "type": "workflow_plan".
-2.  **If the user explicitly asks for an "example workflow", "show me …pic (e.g., "automate marketing") and you've already asked 1-2 clarifying questions without much progress, offer a common example "workflow_plan" related to that topic to help them.
-5.  If the user asks a general question not about a specific workflow automation, provide a helpful answer with "type": "simple_text".
-
-…Remember to use the conversation history (if provided) to understand context and avoid repeating questions.
-The user is currently: ${user.sub}.
-Current user message: "${text}"`
+          }))
         }),
       });
 
@@ -333,25 +160,7 @@ Current user message: "${text}"`
         throw new Error('Failed to get AI response');
       }
 
-      let data;
-      try {
-        const text = await aiResponse.text();
-        console.log('Raw response:', text);
-        
-        // Handle markdown-formatted JSON
-        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-          data = JSON.parse(jsonMatch[1].trim());
-        } else {
-          // Try parsing as regular JSON if no markdown formatting
-          data = JSON.parse(text);
-        }
-        console.log('Parsed response:', data);
-      } catch (parseError) {
-        console.error('Error parsing response:', parseError);
-        throw new Error('Invalid response from server');
-      }
-
+      const data = await aiResponse.json();
       const { text: aiText, nodes, type } = data;
 
       if (!aiText) {
@@ -407,67 +216,6 @@ Current user message: "${text}"`
     }
   };
 
-  // Update handleDeleteChat to use context
-  const handleDeleteChat = async (chatIdToDelete: string) => {
-    if (!user?.sub) return;
-    
-    try {
-      const response = await fetch(`/api/chat/delete?chatId=${chatIdToDelete}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete chat');
-      }
-
-      // Remove chat from context
-      removeChat(chatIdToDelete);
-
-      // If we're currently in the deleted chat, redirect to the most recent chat
-      if (chatIdToDelete === chatId) {
-        // Get the most recent chat from the remaining chats
-        const remainingChats = chats.filter(chat => chat.id !== chatIdToDelete);
-        if (remainingChats.length > 0) {
-          const mostRecentChat = remainingChats[0]; // Already sorted by date
-          router.push(`/chat/${mostRecentChat.id}`);
-        } else {
-          // If no chats left, redirect to home
-          router.push('/');
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-    }
-  };
-
-  // Update handleRenameChat to use context
-  const handleRenameChat = async (chatIdToRename: string, newTitle: string) => {
-    if (!user?.sub) return;
-    
-    try {
-      const response = await fetch('/api/chat/rename', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId: chatIdToRename,
-          title: newTitle,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to rename chat');
-      }
-
-      // Update chat in context
-      updateChat(chatIdToRename, { title: newTitle });
-      setEditingChatId(null);
-    } catch (error) {
-      console.error('Error renaming chat:', error);
-    }
-  };
-
   if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
@@ -480,145 +228,16 @@ Current user message: "${text}"`
     return null;
   }
 
+  const currentChat = chats.find(chat => chat.id === chatId);
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-white font-sans">
       <Navbar />
       {/* Main Content Area - Flex container */}
       <div className="flex-1 flex relative min-h-0 pt-16">
-        {/* Chat List Sidebar */}
-        <div className={`fixed inset-y-0 left-0 w-64 bg-gray-800 transform transition-transform duration-300 ease-in-out z-40 ${
-          showChatList ? 'translate-x-0' : '-translate-x-full'
-        }`}>
-          <div className="p-4 border-b border-gray-700 flex justify-between items-center">
-            <h2 className="text-lg font-semibold">Your Chats</h2>
-            <button
-              onClick={() => setShowChatList(false)}
-              className="p-2 hover:bg-gray-700 rounded-lg"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="overflow-y-auto h-[calc(100vh-4rem)]">
-            <button
-              onClick={() => {
-                router.push('/chat?new=true');
-                setShowChatList(false);
-              }}
-              className="w-full p-4 text-left hover:bg-gray-700 transition-colors border-b border-gray-700"
-            >
-              <div className="font-medium text-indigo-400">+ New Chat</div>
-            </button>
-            {chats.length === 0 ? (
-              <div className="p-4 text-gray-400 text-center">
-                No chats found
-              </div>
-            ) : (
-              chats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group relative border-b border-gray-700 ${
-                    chat.id === chatId ? 'bg-gray-700' : ''
-                  }`}
-                >
-                  {editingChatId === chat.id ? (
-                    <div className="p-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleRenameChat(chat.id, editingTitle);
-                            } else if (e.key === 'Escape') {
-                              setEditingChatId(null);
-                            }
-                          }}
-                          className="flex-1 bg-gray-600 text-white px-2 py-1 rounded"
-                          autoFocus
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleRenameChat(chat.id, editingTitle);
-                          }}
-                          className="p-1 hover:bg-gray-600 rounded"
-                        >
-                          <Check className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingChatId(null);
-                          }}
-                          className="p-1 hover:bg-gray-600 rounded"
-                        >
-                          <XIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        onClick={() => {
-                          router.push(`/chat/${chat.id}`);
-                          setShowChatList(false);
-                        }}
-                        className="w-full p-4 text-left hover:bg-gray-700 transition-colors"
-                      >
-                        <div className="font-medium truncate">{chat.title || 'Untitled Chat'}</div>
-                        <div className="flex justify-between items-center mt-1">
-                          <div className="text-sm text-gray-400">
-                            {new Date(chat.lastMessageAt).toLocaleString([], { 
-                              month: 'short',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                          <div className="text-xs text-gray-500 bg-gray-700 px-2 py-0.5 rounded-full">
-                            {chat.messageCount} {chat.messageCount === 1 ? 'message' : 'messages'}
-                          </div>
-                        </div>
-                      </button>
-                      <div className="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingChatId(chat.id);
-                            setEditingTitle(chat.title || '');
-                          }}
-                          className="p-1 hover:bg-gray-600 rounded"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this chat?')) {
-                              handleDeleteChat(chat.id);
-                            }
-                          }}
-                          className="p-1 hover:bg-red-600 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
         {/* Menu Button */}
         <button
-          onClick={() => setShowChatList(!showChatList)}
+          onClick={() => router.push('/chat')}
           className="fixed top-20 left-4 z-50 p-2 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors"
         >
           <Menu className="w-6 h-6" />
@@ -720,21 +339,6 @@ Current user message: "${text}"`
             placeholder="Describe the workflow you want to automate..."
             className="flex-grow p-2 md:p-3 bg-transparent text-gray-100 placeholder-gray-400 focus:outline-none text-sm md:text-base"
           />
-          <button
-            onClick={toggleListening}
-            className={`p-2 md:p-3 rounded-lg transition-all duration-200 ${
-              isListening 
-                ? 'bg-red-500 text-white hover:bg-red-600' 
-                : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
-            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-red-500`}
-            aria-label={isListening ? 'Stop listening' : 'Start listening'}
-          >
-            {isListening ? (
-              <MicOff className="w-5 h-5 md:w-6 md:h-6" />
-            ) : (
-              <Mic className="w-5 h-5 md:w-6 md:h-6" />
-            )}
-          </button>
           <button
             onClick={() => handleSendMessage(inputText)}
             disabled={!inputText.trim()}
