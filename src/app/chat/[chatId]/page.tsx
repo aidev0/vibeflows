@@ -64,12 +64,24 @@ export default function ChatPage() {
 
         // Load existing chat
         console.log('Loading chat...', { chatId, userId: user.sub });
-        const response = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+        const response = await fetch(`/api/chat?chatId=${chatId}`);
         
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Chat load error:', errorData);
-          throw new Error(errorData.error || 'Failed to load chat');
+          
+          // Handle specific error cases with user-friendly messages
+          if (response.status === 404) {
+            throw new Error(errorData.message || 'This chat no longer exists or has been deleted.');
+          } else if (response.status === 401) {
+            throw new Error(errorData.message || 'You must be logged in to access this chat.');
+          } else if (response.status === 400) {
+            throw new Error(errorData.message || 'Invalid chat request. Please try again.');
+          } else if (response.status === 500) {
+            throw new Error(errorData.message || 'Server error. Please try again later.');
+          } else {
+            throw new Error(errorData.message || 'Failed to load chat. Please try again.');
+          }
         }
 
         const data = await response.json();
@@ -78,7 +90,7 @@ export default function ChatPage() {
         // Check if we have messages in the response
         if (!data.messages || !Array.isArray(data.messages)) {
           console.error('Invalid messages format:', data);
-          throw new Error('Invalid messages format in response');
+          throw new Error('Unable to load chat messages. Please try again.');
         }
 
         setMessages(data.messages);
@@ -93,14 +105,15 @@ export default function ChatPage() {
           }
         } catch (workflowError) {
           console.error('Error loading workflows:', workflowError);
+          // Don't throw here, as workflow loading is not critical
         }
       } catch (error) {
         console.error('Error in chat initialization:', error);
-        // Add error message to chat
+        // Add error message to chat with more specific error details
         const errorMessage: Message = {
           id: Date.now().toString(),
           chatId: chatId as string,
-          text: "I apologize, but I encountered an error loading the chat. Please try again.",
+          text: error instanceof Error ? error.message : "I apologize, but I encountered an error loading the chat. Please try again.",
           sender: 'ai',
           timestamp: new Date()
         };
@@ -115,7 +128,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         const recognition = new SpeechRecognitionAPI();
         recognitionRef.current = recognition;
@@ -612,7 +625,7 @@ Current user message: "${text}"`
           <div className="pt-2">
             {messages.map((msg) => (
               <div
-                key={msg.id}
+                key={msg.id || msg.timestamp.toString()}
                 className={`flex items-end space-x-3 mb-6 ${
                   msg.sender === 'user' ? 'justify-end' : 'justify-start'
                 }`}
@@ -647,12 +660,12 @@ Current user message: "${text}"`
                         className="w-full"
                       >
                         <ul className="list-none space-y-2 pl-1">
-                          {msg.nodeList.map((node: Node, index) => (
+                          {msg.nodeList.map((node: Node) => (
                             <li 
-                              key={index} 
+                              key={node.id} 
                               className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors cursor-pointer"
                             >
-                              <span className="font-mono text-xs text-indigo-300 mr-2">[{index + 1}]</span>
+                              <span className="font-mono text-xs text-indigo-300 mr-2">[{node.data.label}]</span>
                               {node.data.label}
                             </li>
                           ))}

@@ -20,11 +20,11 @@ export default function Navbar() {
             <div className="flex-shrink-0">
               <Link href="/" className="text-white font-bold text-xl">
                 VibeFlows
-              </Link>
-            </div>
+            </Link>
+          </div>
             {user && (
               <div className="ml-6 text-gray-300">
-                Let's dream big, {user.name || user.nickname || user.email}!
+                  Let's dream big, {user.name || user.nickname || user.email}!
               </div>
             )}
           </div>
@@ -35,18 +35,18 @@ export default function Navbar() {
                 {user ? (
                   <>
                     <div className="relative">
-                      <button
-                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
                         className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none"
-                      >
+            >
                         {isMenuOpen ? (
                           <X className="h-6 w-6" />
                         ) : (
                           <Menu className="h-6 w-6" />
                         )}
-                      </button>
+            </button>
 
-                      {isMenuOpen && (
+        {isMenuOpen && (
                         <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5">
                           <div className="py-1" role="menu" aria-orientation="vertical">
                             <Link
@@ -82,8 +82,8 @@ export default function Navbar() {
                               }`}
                               onClick={() => setIsMenuOpen(false)}
                             >
-                              Features
-                            </Link>
+                Features
+              </Link>
                             <Link
                               href="/about"
                               className={`block px-4 py-2 text-sm ${
@@ -104,8 +104,8 @@ export default function Navbar() {
                               }`}
                               onClick={() => setIsMenuOpen(false)}
                             >
-                              Team
-                            </Link>
+                Team
+              </Link>
                             <Link
                               href="/privacy"
                               className={`block px-4 py-2 text-sm ${
@@ -138,13 +138,13 @@ export default function Navbar() {
                           </div>
                         </div>
                       )}
-                    </div>
+            </div>
                   </>
                 ) : (
                   <Link
-                    href="/api/auth/login"
+                href="/api/auth/login"
                     className="text-sm text-gray-300 hover:text-white"
-                  >
+                >
                     Login
                   </Link>
                 )}

@@ -98,12 +98,12 @@ export default function Navigation() {
                 >
                   Security
                 </Link>
-                <Link
+            <Link 
                   href="/api/auth/logout"
                   className="text-sm text-gray-700 hover:text-gray-900"
-                >
+            >
                   Logout
-                </Link>
+            </Link>
               </div>
             ) : (
               <Link
@@ -112,7 +112,7 @@ export default function Navigation() {
               >
                 Login
               </Link>
-            )}
+                  )}
           </div>
         </div>
       </div>

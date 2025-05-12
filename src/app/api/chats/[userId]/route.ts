@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   try {
-    const targetUserId = params.userId;
+    const { userId: targetUserId } = await params;
     const { searchParams } = new URL(request.url);
     const currentUserId = searchParams.get('userId');
 
