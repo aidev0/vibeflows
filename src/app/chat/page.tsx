@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 
-export default function ChatPage() {
+const ChatPage = () => {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatPageContent />
+    </Suspense>
+  );
+};
+
+const ChatPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading } = useUser();
@@ -107,4 +115,6 @@ export default function ChatPage() {
       <div className="text-white text-xl">Creating new chat...</div>
     </div>
   );
-} 
+};
+
+export default ChatPage; 
