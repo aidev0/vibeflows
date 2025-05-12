@@ -648,7 +648,7 @@ Current user message: "${text}"`
                         components={{
                           strong: ({children}) => <span className="font-bold text-white">{children}</span>,
                           code: ({children}) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-indigo-300 font-mono text-sm">{children}</code>,
-                          p: ({children}) => <p className="leading-relaxed whitespace-pre-line">{children}</p>,
+                          p: ({children}) => <p className="leading-relaxed whitespace-pre-wrap">{children}</p>,
                           ol: ({children}) => <ol className="list-decimal pl-6 space-y-1">{children}</ol>,
                           ul: ({children}) => <ul className="list-disc pl-6 space-y-1">{children}</ul>,
                           li: ({children}) => <li className="leading-relaxed">{children}</li>
