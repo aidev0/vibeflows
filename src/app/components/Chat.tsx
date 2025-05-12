@@ -159,28 +159,22 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex items-end space-x-3 mb-6 ${
+                className={`flex ${
                   msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+                } mb-4`}
               >
-                {msg.sender === 'ai' && (
-                  <Bot className="w-8 h-8 text-indigo-400 flex-shrink-0 mb-1" />
-                )}
                 <div
-                  className={`p-3 md:p-4 rounded-xl max-w-lg shadow-lg ${
+                  className={`p-3 md:p-4 rounded-xl shadow-lg w-fit ${
                     msg.sender === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
                   }`}
                 >
-                  {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
-                  <p className="text-xs text-gray-400 mt-3 text-right">
-                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
+                  {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap break-words">{msg.text}</p>}
+                  <div className="text-xs opacity-70 mt-1">
+                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  </div>
                 </div>
-                {msg.sender === 'user' && (
-                  <User className="w-8 h-8 text-gray-400 flex-shrink-0 mb-1" />
-                )}
               </div>
             ))}
           </div>
