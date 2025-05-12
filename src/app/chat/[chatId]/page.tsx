@@ -7,6 +7,7 @@ import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
 import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon } from 'lucide-react';
+import { useChats } from '@/app/context/ChatContext';
 
 interface Node {
   id: string;
@@ -30,9 +31,65 @@ interface Workflow {
   chat_id: string;
 }
 
+interface Chat {
+  id: string;
+  title: string;
+  created_at: string;
+  messageCount: number;
+  lastMessageAt: string;
+}
+
+// Add type definitions for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
+  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item(index: number): SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  length: number;
+  item(index: number): SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+  message: string;
+}
+
 export default function ChatPage() {
   const { chatId } = useParams();
-  const { user, isLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -44,10 +101,10 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
-  const [allChats, setAllChats] = useState<{ id: string; title: string; created_at: string; messageCount: number }[]>([]);
+  const { chats, updateChat, removeChat } = useChats();
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<typeof window.SpeechRecognition | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
@@ -62,8 +119,16 @@ export default function ChatPage() {
           return;
         }
 
-        // Load existing chat
-        console.log('Loading chat...', { chatId, userId: user.sub });
+        // Check if the chat exists in our context
+        const existingChat = chats.find(chat => chat.id === chatId);
+        if (!existingChat) {
+          console.error('Chat not found in context');
+          router.push('/chat');
+          return;
+        }
+
+        // Load messages for this chat
+        console.log('Loading messages for chat...', { chatId, userId: user.sub });
         const response = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
         
         if (!response.ok) {
@@ -111,7 +176,7 @@ export default function ChatPage() {
     if (user?.sub) {
       initializeChat();
     }
-  }, [chatId, user?.sub, router]);
+  }, [chatId, user?.sub, router, chats]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -342,48 +407,7 @@ Current user message: "${text}"`
     }
   };
 
-  // Add useEffect to fetch all chats
-  useEffect(() => {
-    const fetchAllChats = async () => {
-      if (!user?.sub) {
-        console.log('No user ID available');
-        return;
-      }
-      try {
-        console.log('Fetching chats for user:', user.sub);
-        const response = await fetch(`/api/chats?userId=${user.sub}`);
-        console.log('Chat fetch response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Received chats data:', data);
-          
-          if (!data.chats || !Array.isArray(data.chats)) {
-            console.error('Invalid chats data format:', data);
-            return;
-          }
-
-          // Sort chats by creation date, newest first
-          const sortedChats = data.chats.sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          console.log('Sorted chats:', sortedChats);
-          setAllChats(sortedChats);
-        } else {
-          const errorData = await response.json();
-          console.error('Failed to fetch chats:', errorData);
-        }
-      } catch (error) {
-        console.error('Error fetching chats:', error);
-      }
-    };
-
-    if (user?.sub) {
-      fetchAllChats();
-    }
-  }, [user?.sub]);
-
-  // Add function to delete chat
+  // Update handleDeleteChat to use context
   const handleDeleteChat = async (chatIdToDelete: string) => {
     if (!user?.sub) return;
     
@@ -396,13 +420,13 @@ Current user message: "${text}"`
         throw new Error('Failed to delete chat');
       }
 
-      // Remove chat from list
-      setAllChats(prev => prev.filter(chat => chat.id !== chatIdToDelete));
+      // Remove chat from context
+      removeChat(chatIdToDelete);
 
       // If we're currently in the deleted chat, redirect to the most recent chat
       if (chatIdToDelete === chatId) {
         // Get the most recent chat from the remaining chats
-        const remainingChats = allChats.filter(chat => chat.id !== chatIdToDelete);
+        const remainingChats = chats.filter(chat => chat.id !== chatIdToDelete);
         if (remainingChats.length > 0) {
           const mostRecentChat = remainingChats[0]; // Already sorted by date
           router.push(`/chat/${mostRecentChat.id}`);
@@ -416,7 +440,7 @@ Current user message: "${text}"`
     }
   };
 
-  // Add function to rename chat
+  // Update handleRenameChat to use context
   const handleRenameChat = async (chatIdToRename: string, newTitle: string) => {
     if (!user?.sub) return;
     
@@ -436,20 +460,15 @@ Current user message: "${text}"`
         throw new Error('Failed to rename chat');
       }
 
-      // Update chat in list
-      setAllChats(prev => prev.map(chat => 
-        chat.id === chatIdToRename 
-          ? { ...chat, title: newTitle }
-          : chat
-      ));
-
+      // Update chat in context
+      updateChat(chatIdToRename, { title: newTitle });
       setEditingChatId(null);
     } catch (error) {
       console.error('Error renaming chat:', error);
     }
   };
 
-  if (isLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <div className="text-white text-xl">Loading...</div>
@@ -489,12 +508,12 @@ Current user message: "${text}"`
             >
               <div className="font-medium text-indigo-400">+ New Chat</div>
             </button>
-            {allChats.length === 0 ? (
+            {chats.length === 0 ? (
               <div className="p-4 text-gray-400 text-center">
                 No chats found
               </div>
             ) : (
-              allChats.map((chat) => (
+              chats.map((chat) => (
                 <div
                   key={chat.id}
                   className={`group relative border-b border-gray-700 ${
@@ -552,7 +571,7 @@ Current user message: "${text}"`
                         <div className="font-medium truncate">{chat.title || 'Untitled Chat'}</div>
                         <div className="flex justify-between items-center mt-1">
                           <div className="text-sm text-gray-400">
-                            {new Date(chat.created_at).toLocaleString([], { 
+                            {new Date(chat.lastMessageAt).toLocaleString([], { 
                               month: 'short',
                               day: 'numeric',
                               hour: '2-digit',

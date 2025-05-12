@@ -24,13 +24,13 @@ export default function Home() {
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-6 px-4">
           <Link
-            href="/chat?new=true"
+            href="/chat"
             className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
           >
             Start Automating Free
           </Link>
           <Link
-            href="/chat?new=true"
+            href="/chat"
             className="w-full sm:w-auto border-2 border-gray-200 text-gray-800 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-50 transition-all transform hover:scale-105"
           >
             See How It Works
@@ -79,7 +79,7 @@ export default function Home() {
             Get the power of professional AI software engineering without writing a single line of code.
           </p>
           <Link
-            href="/chat?new=true"
+            href="/chat"
             className="inline-block bg-white text-blue-600 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
           >
             Start Your Free Trial
