@@ -182,31 +182,6 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { fitView } = useReactFlow();
 
-  // Add fit view effect when nodes change
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 100);
-    }
-  }, [rfNodes, fitView]);
-
-  // Add fit view effect when maximized state changes
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 100);
-    }
-  }, [maximized, rfNodes, fitView]);
-
-  // Custom node change handler that respects the lock state
-  const handleNodesChange = useCallback((changes: any[]) => {
-    if (!isLocked) {
-      onNodesChange(changes);
-    }
-  }, [isLocked, onNodesChange]);
-
   // Add window resize handler
   useEffect(() => {
     const updateDimensions = () => {
@@ -222,6 +197,22 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
     window.addEventListener('resize', updateDimensions);
     return () => window.removeEventListener('resize', updateDimensions);
   }, [maximized]);
+
+  // Add fit view effect when nodes change
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [rfNodes, fitView]);
+
+  // Custom node change handler that respects the lock state
+  const handleNodesChange = useCallback((changes: any[]) => {
+    if (!isLocked) {
+      onNodesChange(changes);
+    }
+  }, [isLocked, onNodesChange]);
 
   useEffect(() => {
     const timestamp = new Date().toLocaleTimeString();
@@ -343,7 +334,7 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         width: maximized ? '100vw' : dimensions.width,
         height: maximized ? '100vh' : dimensions.height,
         padding: maximized ? '20px' : '16px',
-        marginTop: maximized ? '0' : '16px', // Remove margin when maximized
+        marginTop: maximized ? '0' : '16px',
         position: maximized ? 'fixed' : 'relative',
         top: maximized ? 0 : 'auto',
         left: maximized ? 0 : 'auto',
@@ -385,13 +376,6 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         nodesConnectable={!isLocked}
         elementsSelectable={!isLocked}
       >
-        <Background 
-          variant={BackgroundVariant.Dots} 
-          gap={16} 
-          size={1.5} 
-          color="#4a627a"
-          style={{ width: '100%', height: '100%' }}
-        />
         <Controls showInteractive={false}>
           <button
             onClick={() => setIsLocked(!isLocked)}
