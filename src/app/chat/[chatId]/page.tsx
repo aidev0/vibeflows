@@ -6,7 +6,7 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
-import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon } from 'lucide-react';
+import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon, Layout } from 'lucide-react';
 
 interface Node {
   id: string;
@@ -642,35 +642,44 @@ Current user message: "${text}"`
                 >
                   {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
                   {msg.nodeList && (
-                    <div className="mt-3">
-                      <button
-                        onClick={() => {
-                          if (msg.nodeList) {
-                            setCurrentWorkflow({
-                              id: Date.now().toString(),
-                              user_id: user?.sub || '',
-                              nodes: msg.nodeList as Node[],
-                              created_at: new Date(),
-                              message_id: msg.id,
-                              chat_id: chatId as string
-                            });
-                            setShowDAG(true);
-                          }
-                        }}
-                        className="w-full"
-                      >
-                        <ul className="list-none space-y-2 pl-1">
-                          {msg.nodeList.map((node: Node) => (
-                            <li 
-                              key={node.id} 
-                              className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors cursor-pointer"
-                            >
-                              <span className="font-mono text-xs text-indigo-300 mr-2">[{node.data.label}]</span>
-                              {node.data.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </button>
+                    <div className="mt-3 border-t border-gray-600 pt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-indigo-300">Workflow Steps</h4>
+                        <button
+                          onClick={() => {
+                            if (msg.nodeList) {
+                              setCurrentWorkflow({
+                                id: Date.now().toString(),
+                                user_id: user?.sub || '',
+                                nodes: msg.nodeList as Node[],
+                                created_at: new Date(),
+                                message_id: msg.id,
+                                chat_id: chatId as string
+                              });
+                              setShowDAG(true);
+                            }
+                          }}
+                          className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                        >
+                          <Layout className="w-4 h-4" />
+                          View Flow
+                        </button>
+                      </div>
+                      <ul className="list-none space-y-2">
+                        {msg.nodeList.map((node: Node, index: number) => (
+                          <li 
+                            key={node.id} 
+                            className="text-sm bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-indigo-300 bg-indigo-900/50 px-2 py-0.5 rounded">
+                                Step {index + 1}
+                              </span>
+                              <span className="text-gray-200">{node.data.label}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   <p className="text-xs text-gray-400 mt-3 text-right">
