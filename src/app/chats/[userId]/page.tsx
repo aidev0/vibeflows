@@ -35,7 +35,7 @@ export default function UserChatsPage() {
         console.log('Fetching chats for user:', { 
           targetUserId: userId, 
           currentUser: user.sub,
-          isAdmin: user.sub === process.env.ADMIN_ID 
+          isAdmin: user.sub === process.env.NEXT_PUBLIC_ADMIN_ID 
         });
         const response = await fetch(`/api/chats/${userId}`);
         
