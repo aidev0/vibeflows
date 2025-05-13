@@ -1,101 +1,157 @@
 'use client';
 
-import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Navbar() {
   const { user, isLoading } = useUser();
+  const pathname = usePathname();
+  const isAdmin = user?.sub === process.env.ADMIN_ID;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed w-full bg-gray-900 z-50">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center gap-2">
-            <Link href="/" className="text-xl md:text-2xl font-bold text-white hover:text-blue-400 transition-colors">
-              <span className="hidden md:inline">vibeflows.app: Your Workflow Automation AI.</span>
-              <span className="md:hidden">VibeFlows AI</span>
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Link href="/" className="text-white font-bold text-xl">
+                VibeFlows
             </Link>
           </div>
-          
-          {/* Desktop menu */}
-          <div className="hidden md:flex items-center space-x-6">
-            <Link href="/features" className="text-gray-300 hover:text-white transition-colors">
-              Features
-            </Link>
-            <Link href="/team" className="text-gray-300 hover:text-white transition-colors">
-              Team
-            </Link>
-            {!isLoading && !user && (
-              <a
-                href="/api/auth/login"
-                className="text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Sign In
-              </a>
-            )}
             {user && (
-              <div className="flex items-center gap-4">
-                <span className="text-gray-300">
+              <div className="ml-6 text-gray-300">
                   Let's dream big, {user.name || user.nickname || user.email}!
-                </span>
-                <a
-                  href="/api/auth/logout"
-                  className="text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Sign Out
-                </a>
               </div>
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
+          <div className="flex items-center">
+            {!isLoading && (
+              <>
+                {user ? (
+                  <>
+                    <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-white hover:text-blue-400 transition-colors"
+                        className="p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                        {isMenuOpen ? (
+                          <X className="h-6 w-6" />
+                        ) : (
+                          <Menu className="h-6 w-6" />
+                        )}
             </button>
-          </div>
-        </div>
 
-        {/* Mobile menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-700">
-            <div className="space-y-2 px-4">
-              <Link href="/features" className="block text-gray-300 hover:text-white transition-colors">
+                        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5">
+                          <div className="py-1" role="menu" aria-orientation="vertical">
+                            <Link
+                              href="/chat"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/chat'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              AI
+                            </Link>
+                            {isAdmin && (
+                              <Link
+                                href="/users"
+                                className={`block px-4 py-2 text-sm ${
+                                  pathname === '/users'
+                                    ? 'text-indigo-400'
+                                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                                }`}
+                                onClick={() => setIsMenuOpen(false)}
+                              >
+                                Users
+                              </Link>
+                            )}
+                            <Link
+                              href="/features"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/features'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
                 Features
               </Link>
-              <Link href="/team" className="block text-gray-300 hover:text-white transition-colors">
+                            <Link
+                              href="/about"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/about'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              About
+                            </Link>
+                            <Link
+                              href="/team"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/team'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
                 Team
               </Link>
+                            <Link
+                              href="/privacy"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/privacy'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Privacy
+                            </Link>
+                            <Link
+                              href="/security"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/security'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Security
+                            </Link>
+                            <Link
+                              href="/api/auth/logout"
+                              className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Logout
+                            </Link>
+                          </div>
+                        </div>
+                      )}
             </div>
-            {!isLoading && !user && (
-              <a
+                  </>
+                ) : (
+                  <Link
                 href="/api/auth/login"
-                className="block text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors mt-4"
-              >
-                Sign In
-              </a>
-            )}
-            {user && (
-              <div className="space-y-2 mt-4">
-                <div className="text-gray-300 px-4 py-2">
-                  Let's dream big, {user.name || user.nickname || user.email}!
-                </div>
-                <a
-                  href="/api/auth/logout"
-                  className="block text-white border border-white/20 hover:bg-white/10 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                    className="text-sm text-gray-300 hover:text-white"
                 >
-                  Sign Out
-                </a>
-              </div>
+                    Login
+                  </Link>
+                )}
+              </>
             )}
           </div>
-        )}
+        </div>
       </div>
     </nav>
   );

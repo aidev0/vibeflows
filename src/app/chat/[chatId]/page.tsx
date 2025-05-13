@@ -6,8 +6,9 @@ import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import WorkflowDAG from '@/app/components/WorkflowDAG';
 import Navbar from '@/app/components/Navbar';
-import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon } from 'lucide-react';
-import { useChats } from '@/app/context/ChatContext';
+import { Send, Bot, User, Mic, MicOff, Menu, X, Trash2, Edit2, Check, X as XIcon, Layout } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import { Components } from 'react-markdown';
 
 interface Node {
   id: string;
@@ -31,65 +32,9 @@ interface Workflow {
   chat_id: string;
 }
 
-interface Chat {
-  id: string;
-  title: string;
-  created_at: string;
-  messageCount: number;
-  lastMessageAt: string;
-}
-
-// Add type definitions for SpeechRecognition
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
-  }
-}
-
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null;
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-  start(): void;
-  stop(): void;
-  abort(): void;
-}
-
-interface SpeechRecognitionEvent {
-  resultIndex: number;
-  results: SpeechRecognitionResultList;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  isFinal: boolean;
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-  message: string;
-}
-
 export default function ChatPage() {
   const { chatId } = useParams();
-  const { user, isLoading: isUserLoading } = useUser();
+  const { user, isLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -101,10 +46,10 @@ export default function ChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [showChatList, setShowChatList] = useState(false);
-  const { chats, updateChat, removeChat } = useChats();
+  const [allChats, setAllChats] = useState<{ id: string; title: string; created_at: string; messageCount: number }[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<typeof window.SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
 
@@ -119,22 +64,26 @@ export default function ChatPage() {
           return;
         }
 
-        // Check if the chat exists in our context
-        const existingChat = chats.find(chat => chat.id === chatId);
-        if (!existingChat) {
-          console.error('Chat not found in context');
-          router.push('/chat');
-          return;
-        }
-
-        // Load messages for this chat
-        console.log('Loading messages for chat...', { chatId, userId: user.sub });
-        const response = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+        // Load existing chat
+        console.log('Loading chat...', { chatId, userId: user.sub });
+        const response = await fetch(`/api/chat?chatId=${chatId}`);
         
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Chat load error:', errorData);
-          throw new Error(errorData.error || 'Failed to load chat');
+          
+          // Handle specific error cases with user-friendly messages
+          if (response.status === 404) {
+            throw new Error(errorData.message || 'This chat no longer exists or has been deleted.');
+          } else if (response.status === 401) {
+            throw new Error(errorData.message || 'You must be logged in to access this chat.');
+          } else if (response.status === 400) {
+            throw new Error(errorData.message || 'Invalid chat request. Please try again.');
+          } else if (response.status === 500) {
+            throw new Error(errorData.message || 'Server error. Please try again later.');
+          } else {
+            throw new Error(errorData.message || 'Failed to load chat. Please try again.');
+          }
         }
 
         const data = await response.json();
@@ -143,7 +92,7 @@ export default function ChatPage() {
         // Check if we have messages in the response
         if (!data.messages || !Array.isArray(data.messages)) {
           console.error('Invalid messages format:', data);
-          throw new Error('Invalid messages format in response');
+          throw new Error('Unable to load chat messages. Please try again.');
         }
 
         setMessages(data.messages);
@@ -158,14 +107,15 @@ export default function ChatPage() {
           }
         } catch (workflowError) {
           console.error('Error loading workflows:', workflowError);
+          // Don't throw here, as workflow loading is not critical
         }
       } catch (error) {
         console.error('Error in chat initialization:', error);
-        // Add error message to chat
+        // Add error message to chat with more specific error details
         const errorMessage: Message = {
           id: Date.now().toString(),
           chatId: chatId as string,
-          text: "I apologize, but I encountered an error loading the chat. Please try again.",
+          text: error instanceof Error ? error.message : "I apologize, but I encountered an error loading the chat. Please try again.",
           sender: 'ai',
           timestamp: new Date()
         };
@@ -176,11 +126,11 @@ export default function ChatPage() {
     if (user?.sub) {
       initializeChat();
     }
-  }, [chatId, user?.sub, router, chats]);
+  }, [chatId, user?.sub, router]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognitionAPI) {
         const recognition = new SpeechRecognitionAPI();
         recognitionRef.current = recognition;
@@ -382,15 +332,17 @@ Current user message: "${text}"`
         }),
       });
 
+      // Automatically show DAG if there are nodes
       if (nodes && nodes.length > 0) {
-        setCurrentWorkflow({
+        const workflow = {
           id: Date.now().toString(),
           user_id: user.sub,
           nodes,
           created_at: new Date(),
           message_id: aiMessage.id,
           chat_id: chatId as string
-        });
+        };
+        setCurrentWorkflow(workflow);
         setShowDAG(true);
       }
     } catch (error) {
@@ -407,7 +359,48 @@ Current user message: "${text}"`
     }
   };
 
-  // Update handleDeleteChat to use context
+  // Add useEffect to fetch all chats
+  useEffect(() => {
+    const fetchAllChats = async () => {
+      if (!user?.sub) {
+        console.log('No user ID available');
+        return;
+      }
+      try {
+        console.log('Fetching chats for user:', user.sub);
+        const response = await fetch(`/api/chats?userId=${user.sub}`);
+        console.log('Chat fetch response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Received chats data:', data);
+          
+          if (!data.chats || !Array.isArray(data.chats)) {
+            console.error('Invalid chats data format:', data);
+            return;
+          }
+
+          // Sort chats by creation date, newest first
+          const sortedChats = data.chats.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          console.log('Sorted chats:', sortedChats);
+          setAllChats(sortedChats);
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to fetch chats:', errorData);
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+
+    if (user?.sub) {
+      fetchAllChats();
+    }
+  }, [user?.sub]);
+
+  // Add function to delete chat
   const handleDeleteChat = async (chatIdToDelete: string) => {
     if (!user?.sub) return;
     
@@ -420,13 +413,13 @@ Current user message: "${text}"`
         throw new Error('Failed to delete chat');
       }
 
-      // Remove chat from context
-      removeChat(chatIdToDelete);
+      // Remove chat from list
+      setAllChats(prev => prev.filter(chat => chat.id !== chatIdToDelete));
 
       // If we're currently in the deleted chat, redirect to the most recent chat
       if (chatIdToDelete === chatId) {
         // Get the most recent chat from the remaining chats
-        const remainingChats = chats.filter(chat => chat.id !== chatIdToDelete);
+        const remainingChats = allChats.filter(chat => chat.id !== chatIdToDelete);
         if (remainingChats.length > 0) {
           const mostRecentChat = remainingChats[0]; // Already sorted by date
           router.push(`/chat/${mostRecentChat.id}`);
@@ -440,7 +433,7 @@ Current user message: "${text}"`
     }
   };
 
-  // Update handleRenameChat to use context
+  // Add function to rename chat
   const handleRenameChat = async (chatIdToRename: string, newTitle: string) => {
     if (!user?.sub) return;
     
@@ -460,15 +453,20 @@ Current user message: "${text}"`
         throw new Error('Failed to rename chat');
       }
 
-      // Update chat in context
-      updateChat(chatIdToRename, { title: newTitle });
+      // Update chat in list
+      setAllChats(prev => prev.map(chat => 
+        chat.id === chatIdToRename 
+          ? { ...chat, title: newTitle }
+          : chat
+      ));
+
       setEditingChatId(null);
     } catch (error) {
       console.error('Error renaming chat:', error);
     }
   };
 
-  if (isUserLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <div className="text-white text-xl">Loading...</div>
@@ -508,12 +506,12 @@ Current user message: "${text}"`
             >
               <div className="font-medium text-indigo-400">+ New Chat</div>
             </button>
-            {chats.length === 0 ? (
+            {allChats.length === 0 ? (
               <div className="p-4 text-gray-400 text-center">
                 No chats found
               </div>
             ) : (
-              chats.map((chat) => (
+              allChats.map((chat) => (
                 <div
                   key={chat.id}
                   className={`group relative border-b border-gray-700 ${
@@ -571,7 +569,7 @@ Current user message: "${text}"`
                         <div className="font-medium truncate">{chat.title || 'Untitled Chat'}</div>
                         <div className="flex justify-between items-center mt-1">
                           <div className="text-sm text-gray-400">
-                            {new Date(chat.lastMessageAt).toLocaleString([], { 
+                            {new Date(chat.created_at).toLocaleString([], { 
                               month: 'short',
                               day: 'numeric',
                               hour: '2-digit',
@@ -631,7 +629,7 @@ Current user message: "${text}"`
           <div className="pt-2">
             {messages.map((msg) => (
               <div
-                key={msg.id}
+                key={msg.id || msg.timestamp.toString()}
                 className={`flex items-end space-x-3 mb-6 ${
                   msg.sender === 'user' ? 'justify-end' : 'justify-start'
                 }`}
@@ -646,37 +644,61 @@ Current user message: "${text}"`
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
                   }`}
                 >
-                  {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap">{msg.text}</p>}
-                  {msg.nodeList && (
-                    <div className="mt-3">
-                      <button
-                        onClick={() => {
-                          if (msg.nodeList) {
-                            setCurrentWorkflow({
-                              id: Date.now().toString(),
-                              user_id: user?.sub || '',
-                              nodes: msg.nodeList as Node[],
-                              created_at: new Date(),
-                              message_id: msg.id,
-                              chat_id: chatId as string
-                            });
-                            setShowDAG(true);
-                          }
+                  {msg.text && (
+                    <div className="text-sm md:text-base prose prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          strong: ({children}) => <span className="font-bold text-white">{children}</span>,
+                          code: ({children}) => <code className="bg-gray-800 px-1.5 py-0.5 rounded text-indigo-300 font-mono text-sm">{children}</code>,
+                          p: ({children}) => <p className="leading-relaxed whitespace-pre-wrap">{children}</p>,
+                          ol: ({children}) => <ol className="list-decimal pl-6 space-y-1">{children}</ol>,
+                          ul: ({children}) => <ul className="list-disc pl-6 space-y-1">{children}</ul>,
+                          li: ({children}) => <li className="leading-relaxed">{children}</li>
                         }}
-                        className="w-full"
                       >
-                        <ul className="list-none space-y-2 pl-1">
-                          {msg.nodeList.map((node: Node, index) => (
-                            <li 
-                              key={index} 
-                              className="text-sm md:text-base text-gray-300 bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors cursor-pointer"
-                            >
-                              <span className="font-mono text-xs text-indigo-300 mr-2">[{index + 1}]</span>
-                              {node.data.label}
-                            </li>
-                          ))}
-                        </ul>
-                      </button>
+                        {msg.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                  {msg.nodeList && (
+                    <div className="mt-3 border-t border-gray-600 pt-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-medium text-indigo-300">Workflow Steps</h4>
+                        <button
+                          onClick={() => {
+                            if (msg.nodeList) {
+                              setCurrentWorkflow({
+                                id: Date.now().toString(),
+                                user_id: user?.sub || '',
+                                nodes: msg.nodeList as Node[],
+                                created_at: new Date(),
+                                message_id: msg.id,
+                                chat_id: chatId as string
+                              });
+                              setShowDAG(true);
+                            }
+                          }}
+                          className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                        >
+                          <Layout className="w-4 h-4" />
+                          View Flow
+                        </button>
+                      </div>
+                      <ul className="list-none space-y-2">
+                        {msg.nodeList.map((node: Node, index: number) => (
+                          <li 
+                            key={node.id} 
+                            className="text-sm bg-gray-600/50 p-3 rounded-md shadow hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-indigo-300 bg-indigo-900/50 px-2 py-0.5 rounded">
+                                Step {index + 1}
+                              </span>
+                              <span className="text-gray-200">{node.data.label}</span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
                   <p className="text-xs text-gray-400 mt-3 text-right">
@@ -698,8 +720,8 @@ Current user message: "${text}"`
 
         {/* DAG Visualization Section */}
         {showDAG && currentWorkflow && (
-          <div className="w-2/3 border-l border-gray-700 bg-gray-800 relative">
-            <div className="h-[calc(100vh-12rem)]">
+          <div className="w-2/3 border-l border-gray-700 bg-gray-800 relative h-[calc(100vh-5rem)]">
+            <div className="h-full overflow-hidden">
               <WorkflowDAG 
                 steps={currentWorkflow.nodes} 
                 onClose={() => setShowDAG(false)}

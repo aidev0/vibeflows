@@ -2,7 +2,12 @@
 const nextConfig = {
   devIndicators: false,
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'vibeflows.app', 'vibeflows-c28a3602302a.herokuapp.com']
+    }
+  },
+  env: {
+    ADMIN_ID: process.env.ADMIN_ID,
   },
   async headers() {
     const allowedOrigins = [

@@ -1,7 +1,7 @@
 // /components/WorkflowDAG.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -15,6 +15,8 @@ import ReactFlow, {
   Handle,      // << CRITICAL: Ensure Handle is imported
   Node as RFNode,
   Edge as RFEdge,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css'; // Base React Flow styles
 import dagre from 'dagre'; // For automatic layout
@@ -27,8 +29,8 @@ interface WorkflowDAGProps {
   onClose?: () => void; // Optional: If you want a close button for maximized view
 }
 
-const NODE_WIDTH = 280; // Increased for better readability
-const NODE_HEIGHT = 120; // Increased for better readability
+const NODE_WIDTH = 400;
+const NODE_HEIGHT = 180;
 
 // 1. Define the stylish custom node with Handles
 const nodeTypes = {
@@ -78,15 +80,17 @@ const nodeTypes = {
         </div>
         {data.description && (
           <div style={{ 
-            fontSize: '14px', 
+            fontSize: '16px',
             color: '#bdc3c7', 
             overflow: 'hidden', 
             textOverflow: 'ellipsis', 
             display: '-webkit-box', 
-            WebkitLineClamp: 2, 
+            WebkitLineClamp: 4,
             WebkitBoxOrient: 'vertical',
             lineHeight: '1.4',
-            letterSpacing: '0.3px'
+            letterSpacing: '0.3px',
+            marginTop: '8px',
+            maxHeight: '100px'
           }}>
             {data.description}
           </div>
@@ -109,18 +113,18 @@ const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[]) => {
   dagreGraph.setGraph({
     rankdir: 'LR',
     align: 'UL',
-    nodesep: 150,
-    ranksep: 150,
-    marginx: 50,
-    marginy: 50,
+    nodesep: 200, // Adjusted for 3 nodes per row
+    ranksep: 250, // Keep vertical spacing
+    marginx: 100,
+    marginy: 100,
     acyclicer: 'greedy',
     ranker: 'network-simplex'
   });
 
   // Calculate grid layout
-  const nodesPerRow = 3;
-  const horizontalSpacing = 150;
-  const verticalSpacing = 150;
+  const nodesPerRow = 3; // Changed back to 3 nodes per row
+  const horizontalSpacing = 200; // Adjusted for 3 nodes per row
+  const verticalSpacing = 250; // Keep vertical spacing
 
   nodes.forEach((node, index) => {
     const row = Math.floor(index / nodesPerRow);
@@ -169,13 +173,32 @@ const getLayoutedElements = (nodes: RFNode[], edges: RFEdge[]) => {
   };
 };
 
-const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
+const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState<RFNode[]>([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState<RFEdge[]>([]);
   const [maximized, setMaximized] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const { user, isLoading: isUserLoading } = useUser();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const { fitView } = useReactFlow();
+
+  // Add fit view effect when nodes change
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [rfNodes, fitView]);
+
+  // Add fit view effect when maximized state changes
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [maximized, rfNodes, fitView]);
 
   // Custom node change handler that respects the lock state
   const handleNodesChange = useCallback((changes: any[]) => {
@@ -190,8 +213,8 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       setDimensions({
-        width: maximized ? width : Math.min(width * 0.8, 1200),
-        height: maximized ? height : Math.min(height * 0.8, 800)
+        width: maximized ? width : width * (2/3),
+        height: maximized ? height : height * (2/3)
       });
     };
 
@@ -298,9 +321,31 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   }, [steps, setRfNodes, setRfEdges]);
 
   const toggleMaximize = () => {
-    setMaximized(!maximized);
-    // Trigger a resize event to update dimensions
-    window.dispatchEvent(new Event('resize'));
+    if (maximized) {
+      // When minimizing, set to 2/3 size (1/3 for chat, 2/3 for dag)
+      setMaximized(false);
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setDimensions({
+        width: width * (2/3),
+        height: height * (2/3)
+      });
+      // Wait for chat to be visible before fitting
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 300);
+    } else {
+      // When maximizing, set to full window size (no chat visible)
+      setMaximized(true);
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+      // Fit immediately when maximizing
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
   };
 
   // Safely get the label for the header
@@ -320,7 +365,7 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         width: maximized ? '100vw' : dimensions.width,
         height: maximized ? '100vh' : dimensions.height,
         padding: maximized ? '20px' : '16px',
-        marginTop: maximized ? '0' : '16px', // Remove margin when maximized
+        marginTop: maximized ? '0' : '16px',
         position: maximized ? 'fixed' : 'relative',
         top: maximized ? 0 : 'auto',
         left: maximized ? 0 : 'auto',
@@ -353,17 +398,19 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={{ padding: 0.2, duration: 800 }}
         minZoom={0.1}
-        maxZoom={2}
+        maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        attributionPosition="bottom-right"
-        style={{ background: 'transparent' }}
-        nodesDraggable={!isLocked}
-        nodesConnectable={!isLocked}
-        elementsSelectable={!isLocked}
+        style={{ background: '#1a1a1a' }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={16} size={1.5} color="#4a627a" />
+        <Background 
+          variant={BackgroundVariant.Dots} 
+          gap={16} 
+          size={1.5} 
+          color="#4a627a"
+          style={{ width: '100%', height: '100%', position: 'absolute' }}
+        />
         <Controls showInteractive={false}>
           <button
             onClick={() => setIsLocked(!isLocked)}
@@ -389,6 +436,14 @@ const WorkflowDAG: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         </Controls>
       </ReactFlow>
     </div>
+  );
+};
+
+const WorkflowDAG: React.FC<WorkflowDAGProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowDAGInner {...props} />
+    </ReactFlowProvider>
   );
 };
 

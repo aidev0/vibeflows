@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
                 type: 'action',
                 data: {
                   label: node.name || node.label || `Step ${index + 1}`,
-                  description: node.description,
+                  description: node.description || node.details || node.notes || '',
                   tools: node.tools,
                   notes: node.notes
                 },
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
                   type: 'action',
                   data: {
                     label: node.name || node.label || `Step ${index + 1}`,
-                    description: node.description,
+                    description: node.description || node.details || node.notes || '',
                     tools: node.tools,
                     notes: node.notes
                   },

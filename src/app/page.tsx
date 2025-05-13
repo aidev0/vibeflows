@@ -13,14 +13,14 @@ export default function Home() {
       {/* Main landing content with padding top for header */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 text-center">
         <div className="inline-block mb-4 px-3 py-1.5 md:px-4 md:py-2 rounded-full bg-blue-100 text-blue-700 text-sm md:text-base font-medium">
-          Enterprise-Grade Automation Made Simple.
+          Enterprise-Grade Automation AI.
         </div>
         <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-gray-900 mb-4 md:mb-6 leading-tight">
-          Workflow Automation
+          Work Automation
           <span className="block md:inline bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> AI made for Non-Technicals.</span> 
         </h1>
         <p className="text-lg md:text-xl lg:text-2xl text-gray-800 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
-          Finally, a workflow automation tool that gives you enterprise-grade power without the complexity. Just tell our AI what you want to automate, and it handles the rest.
+          Finally, a work automation platform that gives you enterprise-grade power without the complexity. Just tell our AI what you want to automate, and it handles the rest.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-6 px-4">
           <Link
@@ -76,7 +76,7 @@ export default function Home() {
             Ready to Transform Your Workflows?
           </h2>
           <p className="text-lg md:text-xl mb-6 md:mb-8 max-w-2xl mx-auto">
-            Get the power of professional AI software engineering without writing a single line of code.
+            Get the power of the most advanced AI without writing a single line of code or complex configurations. You just vibe and let us do the work.
           </p>
           <Link
             href="/chat"
@@ -91,7 +91,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-gray-700 text-sm md:text-base">
-              © 2025 VibeFlows. Powered by Vibe Coding.
+              © 2025 VibeFlows. Your army of AI agents.
             </div>
             <div className="flex gap-4 md:gap-6">
               <Link href="/privacy" className="text-gray-700 hover:text-blue-600 transition-colors text-sm md:text-base">Privacy</Link>

@@ -27,7 +27,7 @@ const options = {
   tlsAllowInvalidHostnames: true, // Allow invalid hostnames for development
 };
 
-let client: MongoClient;
+let client;
 let clientPromise: Promise<MongoClient>;
 
 if (process.env.NODE_ENV === 'development') {
@@ -99,6 +99,12 @@ clientPromise
   .catch(error => {
     console.error('MongoDB connection status check failed:', error);
   });
+
+export async function connectToDatabase() {
+  const client = await clientPromise;
+  const db = client.db();
+  return { client, db };
+}
 
 // Export a module-scoped MongoClient promise. By doing this in a
 // separate module, the client can be shared across functions.
