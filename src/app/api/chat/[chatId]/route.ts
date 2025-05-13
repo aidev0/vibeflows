@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { getSession } from '@auth0/nextjs-auth0';
 
 export async function GET(
   request: Request,
@@ -8,15 +9,14 @@ export async function GET(
 ) {
   try {
     const chatId = params.chatId;
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 401 });
+    const session = await getSession();
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // For now, allow all access to test
-    const isAdmin = true;
+    const userId = session.user.sub;
+    const isAdmin = userId === process.env.ADMIN_ID;
 
     console.log('Auth check:', { 
       userId, 
@@ -35,6 +35,11 @@ export async function GET(
     if (!chat) {
       console.log('Chat not found:', chatId);
       return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+    }
+
+    // If not admin, verify chat belongs to user
+    if (!isAdmin && chat.user_id !== userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     console.log('Chat found:', {

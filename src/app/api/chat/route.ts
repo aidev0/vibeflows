@@ -15,7 +15,6 @@ export async function GET(request: NextRequest) {
       user: session?.user ? {
         sub: session.user.sub,
         email: session.user.email,
-        roles: session.user['https://vibeflows.com/roles'],
         allClaims: Object.keys(session.user)
       } : null
     });
@@ -30,15 +29,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const chatId = searchParams.get('chatId');
     const userId = session.user.sub;
-
-    // Check for admin status using Auth0 roles
-    const isAdmin = session.user['https://vibeflows.com/roles']?.includes('admin') || false;
+    const isAdmin = userId === process.env.ADMIN_ID;
 
     console.log('Access check:', {
       userId,
       chatId,
-      isAdmin,
-      roles: session.user['https://vibeflows.com/roles']
+      isAdmin
     });
 
     if (!chatId) {
@@ -52,19 +48,23 @@ export async function GET(request: NextRequest) {
     await client.connect();
     const db = client.db('vibeflows');
     
-    // Do not check user_id, allow anyone to load any chat by ID
+    // Get chat by ID
     const chatQuery = { _id: new ObjectId(chatId) };
-
-    console.log('MongoDB query:', chatQuery);
-
     const chat = await db.collection('chats').findOne(chatQuery);
 
     if (!chat) {
       return NextResponse.json({ 
         error: 'Chat not found',
-        message: isAdmin ? 'Chat not found' : 'You do not have access to this chat',
-        details: { chatId, userId, isAdmin }
+        message: 'Chat not found'
       }, { status: 404 });
+    }
+
+    // If not admin, verify chat belongs to user
+    if (!isAdmin && chat.user_id !== userId) {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'You do not have access to this chat'
+      }, { status: 401 });
     }
 
     // Get messages for this chat

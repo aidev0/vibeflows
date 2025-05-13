@@ -1,22 +1,26 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import { getSession } from '@auth0/nextjs-auth0';
 
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
 ) {
   try {
-    const { userId: targetUserId } = await params;
-    const { searchParams } = new URL(request.url);
-    const currentUserId = searchParams.get('userId');
-
-    if (!currentUserId) {
-      console.log('No current user ID provided');
-      return NextResponse.json({ error: 'User ID required' }, { status: 401 });
+    const { userId: targetUserId } = params;
+    const session = await getSession();
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // For now, allow all access to test
-    const isAdmin = true;
+    const currentUserId = session.user.sub;
+    const isAdmin = currentUserId === process.env.ADMIN_ID;
+
+    // If not admin, can only view own chats
+    if (!isAdmin && currentUserId !== targetUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     console.log('Auth check:', { 
       currentUserId, 
