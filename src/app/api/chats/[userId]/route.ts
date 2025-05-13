@@ -12,6 +12,14 @@ export async function GET(
     const currentUserId = session?.user?.sub;
     const isAdmin = currentUserId === process.env.ADMIN_ID;
 
+    console.log('Chats route admin check:', {
+      currentUserId,
+      targetUserId,
+      adminId: process.env.ADMIN_ID,
+      isAdmin,
+      session: session?.user
+    });
+
     // If admin, allow access without further checks
     if (isAdmin) {
       const { client } = await connectToDatabase();
