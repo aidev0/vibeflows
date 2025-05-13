@@ -32,8 +32,12 @@ export default function UserChatsPage() {
 
       try {
         setIsLoading(true);
-        console.log('Fetching chats for user:', { userId, currentUser: user.sub });
-        const response = await fetch(`/api/chats/${userId}?userId=${user.sub}`);
+        console.log('Fetching chats for user:', { 
+          targetUserId: userId, 
+          currentUser: user.sub,
+          isAdmin: user.sub === process.env.NEXT_PUBLIC_ADMIN_ID 
+        });
+        const response = await fetch(`/api/chats/${userId}`);
         
         if (!response.ok) {
           if (response.status === 401) {

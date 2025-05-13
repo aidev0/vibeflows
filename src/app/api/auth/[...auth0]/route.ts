@@ -15,11 +15,22 @@ const getBaseUrl = () => {
   return 'https://vibeflows.app';
 };
 
+const baseUrl = getBaseUrl();
+
 export const GET = handleAuth({
   login: handleLogin({
-    returnTo: getBaseUrl()
+    returnTo: baseUrl,
+    authorizationParams: {
+      response_type: 'code',
+      scope: 'openid profile email',
+      audience: process.env.AUTH0_AUDIENCE
+    }
   }),
   logout: handleLogout({
-    returnTo: getBaseUrl()
+    returnTo: baseUrl,
+    logoutParams: {
+      returnTo: baseUrl,
+      client_id: process.env.AUTH0_CLIENT_ID
+    }
   })
 });
