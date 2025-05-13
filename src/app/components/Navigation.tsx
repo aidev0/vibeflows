@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 const ADMIN_ID = process.env.ADMIN_ID;
 
@@ -11,7 +11,6 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, isLoading } = useUser();
   const pathname = usePathname();
-  const router = useRouter();
   const isAdmin = user?.sub === ADMIN_ID;
 
   console.log('Admin check:', {
@@ -20,23 +19,6 @@ export default function Navigation() {
     isAdmin,
     user
   });
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    try {
-      // First try the API route
-      const response = await fetch('/api/auth/logout');
-      if (!response.ok) {
-        throw new Error('Logout failed');
-      }
-      // If successful, redirect to home
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Fallback to direct Auth0 logout
-      window.location.href = '/api/auth/logout';
-    }
-  };
 
   return (
     <nav className="bg-white shadow-md">
@@ -123,12 +105,12 @@ export default function Navigation() {
                 >
                   Security
                 </Link>
-                <button 
-                  onClick={handleLogout}
+                <Link
+                  href="/api/auth/logout"
                   className="text-sm text-gray-700 hover:text-gray-900"
                 >
                   Logout
-                </button>
+                </Link>
               </div>
             ) : (
               <Link
