@@ -13,6 +13,13 @@ export default function Navigation() {
   const pathname = usePathname();
   const isAdmin = user?.sub === ADMIN_ID;
 
+  console.log('Admin check:', {
+    userSub: user?.sub,
+    adminId: ADMIN_ID,
+    isAdmin,
+    user
+  });
+
   return (
     <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

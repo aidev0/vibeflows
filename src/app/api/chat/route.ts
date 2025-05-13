@@ -14,6 +14,13 @@ export async function GET(request: NextRequest) {
     const userId = session?.user?.sub;
     const isAdmin = userId === process.env.ADMIN_ID;
 
+    console.log('Backend admin check:', {
+      userId,
+      adminId: process.env.ADMIN_ID,
+      isAdmin,
+      session: session?.user
+    });
+
     // If admin, allow access without further checks
     if (isAdmin) {
       const { searchParams } = new URL(request.url);
