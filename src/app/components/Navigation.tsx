@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { usePathname, useRouter } from 'next/navigation';
 
-const ADMIN_ID = process.env.NEXT_PUBLIC_ADMIN_ID;
+const ADMIN_ID = process.env.ADMIN_ID;
 
 export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
