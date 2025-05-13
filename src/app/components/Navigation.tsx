@@ -98,21 +98,21 @@ export default function Navigation() {
                 >
                   Security
                 </Link>
-            <Link 
-                  href="/api/auth/logout"
+                <Link 
+                  href="/api/auth/logout?returnTo=/"
                   className="text-sm text-gray-700 hover:text-gray-900"
-            >
+                >
                   Logout
-            </Link>
+                </Link>
               </div>
             ) : (
               <Link
-                href="/api/auth/login"
+                href="/api/auth/login?returnTo=/"
                 className="text-sm text-gray-700 hover:text-gray-900"
               >
                 Login
               </Link>
-                  )}
+            )}
           </div>
         </div>
       </div>

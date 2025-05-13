@@ -11,14 +11,54 @@ export async function GET(request: NextRequest) {
     console.log('Starting chat API request...');
     
     const session = await getSession(request, new NextResponse());
-    console.log('Session data:', {
-      user: session?.user ? {
-        sub: session.user.sub,
-        email: session.user.email,
-        allClaims: Object.keys(session.user)
-      } : null
-    });
+    const userId = session?.user?.sub;
+    const isAdmin = userId === process.env.ADMIN_ID;
 
+    // If admin, allow access without further checks
+    if (isAdmin) {
+      const { searchParams } = new URL(request.url);
+      const chatId = searchParams.get('chatId');
+
+      if (!chatId) {
+        return NextResponse.json({ 
+          error: 'Missing required parameters',
+          message: 'Chat ID is required'
+        }, { status: 400 });
+      }
+
+      client = new MongoClient(process.env.MONGODB_URI!);
+      await client.connect();
+      const db = client.db('vibeflows');
+      
+      const chat = await db.collection('chats').findOne({ 
+        _id: new ObjectId(chatId)
+      });
+
+      if (!chat) {
+        return NextResponse.json({ 
+          error: 'Chat not found',
+          message: 'Chat not found'
+        }, { status: 404 });
+      }
+
+      const messages = await db.collection('messages')
+        .find({ chatId })
+        .sort({ timestamp: 1 })
+        .toArray();
+
+      return NextResponse.json({ 
+        messages,
+        chat: {
+          id: chat._id.toString(),
+          title: chat.title,
+          created_at: chat.created_at,
+          user_id: chat.user_id,
+          isAdmin
+        }
+      });
+    }
+
+    // For non-admin users, require session
     if (!session?.user) {
       return NextResponse.json({ 
         error: 'Unauthorized',
@@ -28,14 +68,6 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const chatId = searchParams.get('chatId');
-    const userId = session.user.sub;
-    const isAdmin = userId === process.env.ADMIN_ID;
-
-    console.log('Access check:', {
-      userId,
-      chatId,
-      isAdmin
-    });
 
     if (!chatId) {
       return NextResponse.json({ 
@@ -48,9 +80,9 @@ export async function GET(request: NextRequest) {
     await client.connect();
     const db = client.db('vibeflows');
     
-    // Get chat by ID
-    const chatQuery = { _id: new ObjectId(chatId) };
-    const chat = await db.collection('chats').findOne(chatQuery);
+    const chat = await db.collection('chats').findOne({ 
+      _id: new ObjectId(chatId)
+    });
 
     if (!chat) {
       return NextResponse.json({ 
@@ -59,15 +91,14 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // If not admin, verify chat belongs to user
-    if (!isAdmin && chat.user_id !== userId) {
+    // Verify chat belongs to user
+    if (chat.user_id !== userId) {
       return NextResponse.json({ 
         error: 'Unauthorized',
         message: 'You do not have access to this chat'
       }, { status: 401 });
     }
 
-    // Get messages for this chat
     const messages = await db.collection('messages')
       .find({ chatId })
       .sort({ timestamp: 1 })
