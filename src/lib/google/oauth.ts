@@ -5,6 +5,7 @@ const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error('MONGODB_URI not set');
 
 const client = new MongoClient(uri);
+const dbName = process.env.MONGODB_DATABASE || 'vibeflows';
 
 // Get base URL for redirect URI
 const getBaseUrl = () => {
@@ -88,7 +89,7 @@ export async function getUserEmail(tokens: GoogleTokens): Promise<string> {
 // Store integration credentials in database
 export async function storeTokens(userId: string, integration: 'gmail' | 'sheets', tokens: GoogleTokens) {
   await client.connect();
-  const db = client.db('vibeflows');
+  const db = client.db(dbName);
   const collection = db.collection('integrations');
 
   // First, delete any existing integration for this user and service
@@ -115,7 +116,7 @@ export async function storeTokens(userId: string, integration: 'gmail' | 'sheets
 // Get integration credentials from database
 export async function getStoredTokens(userId: string, integration: 'gmail' | 'sheets'): Promise<GoogleTokens | null> {
   await client.connect();
-  const db = client.db('vibeflows');
+  const db = client.db(dbName);
   const collection = db.collection('integrations');
 
   const tokens = await collection.findOne({ 

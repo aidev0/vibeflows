@@ -8,6 +8,7 @@ const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error('MONGODB_URI not set');
 
 const client = new MongoClient(uri);
+const dbName = process.env.MONGODB_DATABASE || 'vibeflows';
 
 // Get base URL for redirect URI
 const getBaseUrl = () => {
@@ -61,7 +62,7 @@ export async function GET(request: Request) {
 
     // Update email in database
     await client.connect();
-    const db = client.db('vibeflows');
+    const db = client.db(dbName);
     const collection = db.collection('integrations');
     
     await collection.updateOne(
