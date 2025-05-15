@@ -58,23 +58,7 @@ export async function GET(request: Request) {
     const email = await getUserEmail(googleTokens);
     
     // Store tokens and email in database
-    await storeTokens(session.user.sub, state as 'gmail' | 'sheets', googleTokens);
-
-    // Update email in database
-    await client.connect();
-    const db = client.db(dbName);
-    const collection = db.collection('integrations');
-    
-    await collection.updateOne(
-      { 
-        user_id: session.user.sub,
-        provider: 'google',
-        service: state
-      },
-      { $set: { email } }
-    );
-    
-    await client.close();
+    await storeTokens(session.user.sub, state as 'gmail' | 'sheets', googleTokens, email);
 
     return NextResponse.redirect(new URL('/integrations?success=true', getBaseUrl()));
   } catch (error) {
