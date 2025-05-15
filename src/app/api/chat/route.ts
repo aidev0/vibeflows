@@ -11,61 +11,6 @@ export async function GET(request: NextRequest) {
     console.log('Starting chat API request...');
     
     const session = await getSession(request, new NextResponse());
-    const userId = session?.user?.sub;
-    const isAdmin = userId === process.env.ADMIN_ID;
-
-    console.log('Backend admin check:', {
-      userId,
-      adminId: process.env.ADMIN_ID,
-      isAdmin,
-      session: session?.user
-    });
-
-    // If admin, allow access without further checks
-    if (isAdmin) {
-      const { searchParams } = new URL(request.url);
-      const chatId = searchParams.get('chatId');
-
-      if (!chatId) {
-        return NextResponse.json({ 
-          error: 'Missing required parameters',
-          message: 'Chat ID is required'
-        }, { status: 400 });
-      }
-
-      client = new MongoClient(process.env.MONGODB_URI!);
-      await client.connect();
-      const db = client.db('vibeflows');
-      
-      const chat = await db.collection('chats').findOne({ 
-        _id: new ObjectId(chatId)
-      });
-
-      if (!chat) {
-        return NextResponse.json({ 
-          error: 'Chat not found',
-          message: 'Chat not found'
-        }, { status: 404 });
-      }
-
-      const messages = await db.collection('messages')
-        .find({ chatId })
-        .sort({ timestamp: 1 })
-        .toArray();
-
-      return NextResponse.json({ 
-        messages,
-        chat: {
-          id: chat._id.toString(),
-          title: chat.title,
-          created_at: chat.created_at,
-          user_id: chat.user_id,
-          isAdmin
-        }
-      });
-    }
-
-    // For non-admin users, require session
     if (!session?.user) {
       return NextResponse.json({ 
         error: 'Unauthorized',
@@ -98,14 +43,6 @@ export async function GET(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Verify chat belongs to user
-    if (chat.user_id !== userId) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'You do not have access to this chat'
-      }, { status: 401 });
-    }
-
     const messages = await db.collection('messages')
       .find({ chatId })
       .sort({ timestamp: 1 })
@@ -117,8 +54,7 @@ export async function GET(request: NextRequest) {
         id: chat._id.toString(),
         title: chat.title,
         created_at: chat.created_at,
-        user_id: chat.user_id,
-        isAdmin
+        user_id: chat.user_id
       }
     });
 
@@ -141,28 +77,36 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession(request, new NextResponse());
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'You must be logged in to send messages'
+      }, { status: 401 });
     }
 
     const { chatId, message } = await request.json();
     const userId = session.user.sub;
 
     if (!chatId || !message || !userId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return NextResponse.json({ 
+        error: 'Missing required fields',
+        message: 'Chat ID and message are required'
+      }, { status: 400 });
     }
 
     client = new MongoClient(process.env.MONGODB_URI!);
     await client.connect();
     const db = client.db('vibeflows');
 
-    // Verify chat belongs to user
+    // Verify chat exists
     const chat = await db.collection('chats').findOne({
-      _id: new ObjectId(chatId),
-      user_id: userId
+      _id: new ObjectId(chatId)
     });
 
     if (!chat) {
-      return NextResponse.json({ error: 'Chat not found' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'Chat not found',
+        message: 'The specified chat does not exist'
+      }, { status: 404 });
     }
 
     // Save message
@@ -176,7 +120,11 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error saving message:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      message: 'An unexpected error occurred while saving the message',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   } finally {
     if (client) {
       await client.close();
