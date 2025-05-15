@@ -5,9 +5,9 @@ import { NextResponse } from 'next/server';
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error('MONGODB_URI not set');
 
-const client = new MongoClient(uri);
-
 export async function GET() {
+  const client = new MongoClient(uri);
+  
   try {
     const session = await getSession();
     console.log('Sync attempt - Session:', session?.user ? 'exists' : 'none');
@@ -37,27 +37,22 @@ export async function GET() {
 
     console.log('Syncing user:', userDoc);
 
-    try {
-      const result = await usersCollection.updateOne(
-        { user_id: userDoc.user_id },
-        { 
-          $set: userDoc,
-          $setOnInsert: { created_at: now }
-        },
-        { upsert: true }
-      );
+    const result = await usersCollection.updateOne(
+      { user_id: userDoc.user_id },
+      { 
+        $set: userDoc,
+        $setOnInsert: { created_at: now }
+      },
+      { upsert: true }
+    );
 
-      console.log('Sync result:', { 
-        matched: result.matchedCount, 
-        modified: result.modifiedCount,
-        upserted: result.upsertedCount 
-      });
+    console.log('Sync result:', { 
+      matched: result.matchedCount, 
+      modified: result.modifiedCount,
+      upserted: result.upsertedCount 
+    });
 
-      return NextResponse.json({ success: true });
-    } catch (dbError) {
-      console.error('Database operation error:', dbError);
-      return NextResponse.json({ error: 'Database operation failed' }, { status: 500 });
-    }
+    return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Sync error:', error);
     return NextResponse.json({ 

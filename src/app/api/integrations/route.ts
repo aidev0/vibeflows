@@ -5,9 +5,9 @@ import { MongoClient } from 'mongodb';
 const uri = process.env.MONGODB_URI;
 if (!uri) throw new Error('MONGODB_URI not set');
 
-const client = new MongoClient(uri);
-
 export async function GET() {
+  const client = new MongoClient(uri);
+  
   try {
     const session = await getSession();
     if (!session?.user) {
@@ -37,11 +37,11 @@ export async function GET() {
       connected: integration.access_token && integration.expires_at > Date.now()
     }));
 
-    await client.close();
-
     return NextResponse.json(validIntegrations);
   } catch (error) {
     console.error('Error fetching integrations:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } finally {
+    await client.close();
   }
 } 
