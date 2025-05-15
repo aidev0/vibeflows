@@ -1,11 +1,20 @@
-import { NextResponse } from 'next/server';
+import { handleLogout } from '@auth0/nextjs-auth0';
 
-export async function GET() {
-  const auth0Domain = 'vibeflows.us.auth0.com';
-  const clientId = process.env.AUTH0_CLIENT_ID;
-  const returnTo = process.env.AUTH0_BASE_URL;
-  
-  const logoutUrl = `https://${auth0Domain}/v2/logout?client_id=${clientId}&returnTo=${encodeURIComponent(returnTo)}`;
-  
-  return NextResponse.redirect(logoutUrl);
-} 
+const getBaseUrl = () => {
+  // For production (Heroku)
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+
+  // For development
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+
+  // Default to the custom domain
+  return 'https://vibeflows.app';
+};
+
+export const GET = handleLogout({
+  returnTo: getBaseUrl()
+}); 
