@@ -131,7 +131,10 @@ export default function Navbar() {
                             <Link
                               href="/api/auth/logout"
                               className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
-                              onClick={() => setIsMenuOpen(false)}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                window.location.href = '/api/auth/logout';
+                              }}
                             >
                               Logout
                             </Link>

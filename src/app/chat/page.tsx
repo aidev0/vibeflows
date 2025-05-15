@@ -41,8 +41,47 @@ const ChatPageContent = () => {
               router.push(`/chat/${mostRecentChat.id}`);
               return;
             }
-            // If no existing chats and not forcing new, redirect to home
-            router.push('/');
+            // If no existing chats, create a new one instead of redirecting to home
+            const response = await fetch('/api/chat/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                title: 'New Workflow',
+                type: 'workflow'
+              }),
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to create chat');
+            }
+
+            const data = await response.json();
+            if (!data?.chatId) {
+              throw new Error('Invalid response format');
+            }
+
+            // Add welcome message
+            const welcomeMessage = {
+              chatId: data.chatId,
+              message: {
+                id: Date.now().toString(),
+                chatId: data.chatId,
+                text: "👋 Hi! I'm your AI workflow automation assistant. How can I help you today?",
+                sender: 'ai',
+                timestamp: new Date(),
+                type: 'simple_text',
+                systemMessage: "You are VibeFlows AI, a helpful, insightful, and proactive workflow automation assistant. Your primary goal is to help non-technical users define and automate workflows. You should be conversational and guide the user."
+              }
+            };
+
+            await fetch('/api/chat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(welcomeMessage),
+            });
+
+            // Redirect to the new chat
+            router.push(`/chat/${data.chatId}`);
             return;
           }
 
