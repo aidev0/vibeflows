@@ -1,42 +1,68 @@
+import { getSession } from '@auth0/nextjs-auth0';
+import { MongoClient } from 'mongodb';
 import { NextResponse } from 'next/server';
-import { getSession } from '@auth0/nextjs-auth0/edge';
-import { connectToDatabase } from '@/lib/mongodb';
 
-const ADMIN_ID = process.env.ADMIN_ID;
+const uri = process.env.MONGODB_URI;
+if (!uri) throw new Error('MONGODB_URI not set');
+
+const client = new MongoClient(uri);
 
 export async function GET() {
   try {
     const session = await getSession();
-    console.log('Sync route - Session:', session);
-    console.log('Sync route - Session user:', session?.user);
+    console.log('Sync attempt - Session:', session?.user ? 'exists' : 'none');
     
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('No user session found');
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const { db } = await connectToDatabase();
+    console.log('Connecting to MongoDB...');
+    await client.connect();
+    console.log('Connected to MongoDB');
+    
+    const db = client.db('vibeflows');
+    const usersCollection = db.collection('users');
 
-    // Update or insert the current user
-    const result = await db.collection('users').updateOne(
-      { user_id: session.user.sub },
-      {
-        $set: {
-          user_id: session.user.sub,
-          name: session.user.name,
-          email: session.user.email,
-          nickname: session.user.nickname,
-          picture: session.user.picture,
-          last_login: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          isAdmin: session.user.sub === ADMIN_ID
-        }
-      },
-      { upsert: true }
-    );
+    // Create user document with sub renamed to user_id
+    const { sub, ...rest } = session.user;
+    const userDoc = {
+      ...rest,
+      user_id: sub
+    };
 
-    return NextResponse.json({ success: true });
+    console.log('Syncing user:', userDoc);
+
+    try {
+      const result = await usersCollection.updateOne(
+        { user_id: userDoc.user_id },
+        { $set: userDoc },
+        { upsert: true }
+      );
+
+      console.log('Sync result:', { 
+        matched: result.matchedCount, 
+        modified: result.modifiedCount,
+        upserted: result.upsertedCount 
+      });
+
+      return NextResponse.json({ success: true });
+    } catch (dbError) {
+      console.error('Database operation error:', dbError);
+      return NextResponse.json({ error: 'Database operation failed' }, { status: 500 });
+    }
   } catch (error) {
-    console.error('Error in sync route:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error('Sync error:', error);
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
+  } finally {
+    try {
+      await client.close();
+      console.log('MongoDB connection closed');
+    } catch (closeError) {
+      console.error('Error closing MongoDB connection:', closeError);
+    }
   }
 } 

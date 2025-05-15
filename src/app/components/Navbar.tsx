@@ -141,8 +141,7 @@ export default function Navbar() {
                               Security
                             </Link>
                             <Link
-                              href="#"
-                              onClick={handleLogoutClick}
+                              href={`/api/auth/logout?returnTo=${encodeURIComponent(window.location.origin)}`}
                               className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
                             >
                               Logout

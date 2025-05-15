@@ -2,18 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@auth0/nextjs-auth0/client';
 import Navbar from '@/app/components/Navbar';
 
 export default function UsersPage() {
   const router = useRouter();
+  const { user, isLoading: isUserLoading } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!isUserLoading && !user) {
+      router.push('/api/auth/login');
+      return;
+    }
+
     const fetchUsers = async () => {
       try {
         const response = await fetch('/api/users');
+        if (!response.ok) {
+          throw new Error('Failed to fetch users');
+        }
         const data = await response.json();
+        console.log('Fetched users:', data.users);
         setUsers(data.users);
       } catch (error) {
         console.error('Error:', error);
@@ -22,19 +33,21 @@ export default function UsersPage() {
       }
     };
 
-    fetchUsers();
-  }, []);
+    if (user) {
+      fetchUsers();
+    }
+  }, [user, isUserLoading, router]);
 
-  const handleUserClick = (userId: string) => {
-    router.push(`/chats/${userId}`);
-  };
-
-  if (isLoading) {
+  if (isUserLoading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
         <div className="text-white text-xl">Loading...</div>
       </div>
     );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -51,7 +64,7 @@ export default function UsersPage() {
               users.map((user) => (
                 <button
                   key={user._id}
-                  onClick={() => handleUserClick(user.user_id)}
+                  onClick={() => router.push(`/chats/${user.user_id}`)}
                   className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 transition-colors text-left w-full"
                 >
                   <div className="flex flex-col items-center">
