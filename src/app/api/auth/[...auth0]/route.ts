@@ -1,9 +1,6 @@
 import { handleAuth, handleLogin, handleLogout } from '@auth0/nextjs-auth0';
 
 const getBaseUrl = () => {
-  if (process.env.AUTH0_BASE_URL) {
-    return process.env.AUTH0_BASE_URL;
-  }
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3000';
   }
@@ -20,6 +17,10 @@ export const GET = handleAuth({
     }
   }),
   logout: handleLogout({
-    returnTo: getBaseUrl()
+    returnTo: getBaseUrl(),
+    logoutParams: {
+      client_id: process.env.AUTH0_CLIENT_ID,
+      returnTo: getBaseUrl()
+    }
   })
 });

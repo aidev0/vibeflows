@@ -21,7 +21,7 @@ export default function Navbar() {
 
   const handleLogoutClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    window.location.href = `/api/auth/logout?returnTo=${encodeURIComponent(window.location.origin)}`;
+    window.location.href = '/api/auth/logout';
   };
 
   return (
@@ -151,12 +151,12 @@ export default function Navbar() {
                             >
                               Security
                             </Link>
-                            <Link
-                              href="/api/auth/logout"
-                              className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
+                            <button
+                              onClick={handleLogoutClick}
+                              className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
                             >
                               Sign Out
-                            </Link>
+                            </button>
                           </div>
                         </div>
                       )}
