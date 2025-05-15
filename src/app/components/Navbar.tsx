@@ -6,11 +6,23 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_BASE_URL || 'https://vibeflows.app';
+};
+
 export default function Navbar() {
   const { user, isLoading } = useUser();
   const pathname = usePathname();
   const isAdmin = user?.sub === process.env.ADMIN_ID;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const handleLogoutClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = `/api/auth/logout?returnTo=${encodeURIComponent(window.location.origin)}`;
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900 border-b border-gray-800">
@@ -129,12 +141,9 @@ export default function Navbar() {
                               Security
                             </Link>
                             <Link
-                              href="/api/auth/logout"
+                              href="#"
+                              onClick={handleLogoutClick}
                               className="block px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                window.location.href = '/api/auth/logout';
-                              }}
                             >
                               Logout
                             </Link>
