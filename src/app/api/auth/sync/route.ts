@@ -25,10 +25,14 @@ export async function GET() {
     const usersCollection = db.collection('users');
 
     // Create user document with sub renamed to user_id
-    const { sub, ...rest } = session.user;
+    const { sub, picture, ...rest } = session.user;
+    const now = new Date().toISOString();
     const userDoc = {
       ...rest,
-      user_id: sub
+      user_id: sub,
+      picture: picture || null,
+      last_login: now,
+      updated_at: now
     };
 
     console.log('Syncing user:', userDoc);
@@ -36,7 +40,10 @@ export async function GET() {
     try {
       const result = await usersCollection.updateOne(
         { user_id: userDoc.user_id },
-        { $set: userDoc },
+        { 
+          $set: userDoc,
+          $setOnInsert: { created_at: now }
+        },
         { upsert: true }
       );
 
