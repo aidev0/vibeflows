@@ -151,6 +151,17 @@ export default function Navbar() {
                             >
                               Security
                             </Link>
+                            <Link
+                              href="/terms"
+                              className={`block px-4 py-2 text-sm ${
+                                pathname === '/terms'
+                                  ? 'text-indigo-400'
+                                  : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                              }`}
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              Terms
+                            </Link>
                             <button
                               onClick={handleLogoutClick}
                               className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-700"
