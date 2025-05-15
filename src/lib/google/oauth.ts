@@ -28,10 +28,18 @@ const oauth2Client = new google.auth.OAuth2(
 export const SCOPES = {
   GMAIL: [
     'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/gmail.send'
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
   ],
   SHEETS: [
-    'https://www.googleapis.com/auth/spreadsheets'
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
+  ],
+  CALENDAR: [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/calendar.events'
   ]
 };
 
@@ -59,6 +67,25 @@ export function getAuthUrl(scopes: string[], state: string) {
 export async function getTokens(code: string): Promise<GoogleTokens> {
   const { tokens } = await oauth2Client.getToken(code);
   return tokens as GoogleTokens;
+}
+
+// Get user's email from Google
+export async function getUserEmail(tokens: GoogleTokens): Promise<string> {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials(tokens);
+  
+  const people = google.people({ version: 'v1', auth });
+  const response = await people.people.get({
+    resourceName: 'people/me',
+    personFields: 'emailAddresses'
+  });
+  
+  const email = response.data.emailAddresses?.[0]?.value;
+  if (!email) {
+    throw new Error('No email found');
+  }
+  
+  return email;
 }
 
 // Store integration credentials in database
