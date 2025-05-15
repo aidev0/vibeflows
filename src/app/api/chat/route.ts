@@ -48,8 +48,16 @@ export async function GET(request: NextRequest) {
       .sort({ timestamp: 1 })
       .toArray();
 
+    console.log('Loaded messages:', JSON.stringify(messages, null, 2));
+
+    // Ensure JSON data is properly parsed
+    const parsedMessages = messages.map(msg => ({
+      ...msg,
+      json: msg.json ? JSON.parse(JSON.stringify(msg.json)) : undefined
+    }));
+
     return NextResponse.json({ 
-      messages,
+      messages: parsedMessages,
       chat: {
         id: chat._id.toString(),
         title: chat.title,
@@ -110,11 +118,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Save message
-    await db.collection('messages').insertOne({
+    const messageToSave = {
       ...message,
       chatId,
-      timestamp: new Date()
-    });
+      timestamp: new Date(),
+      type: message.type || 'simple_text',
+      json: message.json || undefined
+    };
+
+    console.log('Saving message:', JSON.stringify(messageToSave, null, 2));
+
+    await db.collection('messages').insertOne(messageToSave);
 
     return NextResponse.json({ success: true });
 

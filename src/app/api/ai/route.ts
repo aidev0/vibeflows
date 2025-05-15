@@ -10,7 +10,7 @@ const MODEL_NAME = "gemini-1.5-flash-latest";
 
 // Define the expected structure for the AI's response
 interface AiResponse {
-  type: "workflow_plan" | "clarification_question" | "error" | "simple_text";
+  type: "workflow_plan" | "clarification_question" | "error" | "simple_text" | "json";
   text: string;
   nodes?: Array<{
     id: string;
@@ -26,6 +26,7 @@ interface AiResponse {
   }>;
   options?: string[];
   requiresUserInput: boolean;
+  json?: any;
 }
 
 const uri = process.env.MONGODB_URI;
@@ -133,6 +134,16 @@ export async function POST(req: NextRequest) {
         if (jsonMatch) {
           const rawResponse = JSON.parse(jsonMatch[1].trim());
           
+          // If the response is a JSON object or array, return it as a JSON response
+          if (typeof rawResponse === 'object') {
+            return NextResponse.json({
+              type: 'json',
+              text: '',
+              json: rawResponse,
+              requiresUserInput: false
+            });
+          }
+          
           // Transform workflow plan if needed
           if (rawResponse.type === 'workflow_plan') {
             parsedResponse = {
@@ -161,6 +172,16 @@ export async function POST(req: NextRequest) {
           // Try parsing as regular JSON if no markdown formatting
           try {
             const rawResponse = JSON.parse(responseText);
+            
+            // If the response is a JSON object or array, return it as a JSON response
+            if (typeof rawResponse === 'object') {
+              return NextResponse.json({
+                type: 'json',
+                text: '',
+                json: rawResponse,
+                requiresUserInput: false
+              });
+            }
             
             // Transform workflow plan if needed
             if (rawResponse.type === 'workflow_plan') {
@@ -210,7 +231,15 @@ export async function POST(req: NextRequest) {
       }
 
       // Validate response structure
-      if (!parsedResponse.text || typeof parsedResponse.text !== 'string') {
+      if (parsedResponse.type === 'json') {
+        if (!parsedResponse.json) {
+          console.error('Invalid JSON response structure:', parsedResponse);
+          return NextResponse.json(
+            { error: 'Invalid JSON response structure from AI' },
+            { status: 500 }
+          );
+        }
+      } else if (!parsedResponse.text || typeof parsedResponse.text !== 'string') {
         console.error('Invalid response structure:', parsedResponse);
         return NextResponse.json(
           { error: 'Invalid response structure from AI' },

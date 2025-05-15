@@ -18,8 +18,9 @@ export interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   nodeList?: any[];
-  type?: 'workflow_plan' | 'simple_text';
+  type: 'workflow_plan' | 'simple_text' | 'json';
   systemMessage?: string;
+  json?: any;
 }
 
 export interface Chat {

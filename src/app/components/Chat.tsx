@@ -13,6 +13,66 @@ interface ChatProps {
   chatType: 'workflow' | 'support';
 }
 
+interface JsonTableProps {
+  data: any;
+}
+
+function JsonTable({ data }: JsonTableProps) {
+  console.log('JsonTable data:', data);
+  
+  if (!data || typeof data !== 'object') {
+    console.log('Invalid data for JsonTable:', data);
+    return null;
+  }
+
+  // If it's an array, use the first item's keys as headers
+  const isArray = Array.isArray(data);
+  const items = isArray ? data : [data];
+  
+  // Get all unique keys from all items
+  const headers = Array.from(
+    new Set(
+      items.flatMap(item => Object.keys(item))
+    )
+  );
+
+  console.log('JsonTable headers:', headers);
+  console.log('JsonTable items:', items);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-700">
+        <thead className="bg-gray-800">
+          <tr>
+            {headers.map((header) => (
+              <th
+                key={header}
+                className="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+              >
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-gray-900 divide-y divide-gray-700">
+          {items.map((item, index) => (
+            <tr key={index}>
+              {headers.map((header) => (
+                <td
+                  key={`${index}-${header}`}
+                  className="px-4 py-2 text-sm text-gray-300 whitespace-pre-wrap"
+                >
+                  {item[header] !== undefined ? String(item[header]) : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMessage, chatType }: ChatProps) {
   const { user, isLoading } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,9 +83,11 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
     if (!isLoading && user && chatId) {
       const loadMessages = async () => {
         try {
+          console.log('Loading messages for chatId:', chatId);
           const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
           if (messagesResponse.ok) {
             const messagesData = await messagesResponse.json();
+            console.log('Loaded messages:', messagesData.messages);
             setMessages(messagesData.messages || []);
           }
         } catch (error) {
@@ -95,20 +157,24 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
       }
 
       const data = await aiResponse.json();
-      const { text: aiText } = data;
+      console.log('AI Response:', data);
+      const { text: aiText, json, type } = data;
 
-      if (!aiText) {
+      if (!aiText && !json) {
         throw new Error('Invalid AI response format');
       }
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         chatId: chatId as string,
-        text: aiText,
+        text: aiText || '',
         sender: 'ai',
         timestamp: new Date(),
-        type: 'simple_text'
+        type: json ? 'json' : 'simple_text',
+        json: json || undefined
       };
+
+      console.log('Saving AI message:', aiMessage);
 
       setMessages(prev => [...prev, aiMessage]);
 
@@ -156,27 +222,87 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
         {/* Chat Section */}
         <div className="flex-1 p-4 space-y-4 overflow-y-auto">
           <div className="pt-2">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                } mb-4`}
-              >
+            {messages.map((msg) => {
+              // Debug log
+              console.log('Message:', {
+                id: msg.id,
+                type: msg.type,
+                text: msg.text,
+                json: msg.json,
+                hasJson: !!msg.json,
+                jsonIsArray: Array.isArray(msg.json),
+                jsonLength: msg.json?.length
+              });
+
+              return (
                 <div
-                  className={`p-3 md:p-4 rounded-xl shadow-lg w-fit ${
-                    msg.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none'
-                      : 'bg-gray-700 text-gray-200 rounded-bl-none'
-                  }`}
+                  key={msg.id}
+                  className={`flex ${
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  } mb-4`}
                 >
-                  {msg.text && <p className="text-sm md:text-base whitespace-pre-wrap break-words">{msg.text}</p>}
-                  <div className="text-xs opacity-70 mt-1">
-                    {new Date(msg.timestamp).toLocaleTimeString()}
+                  <div
+                    className={`p-3 md:p-4 rounded-xl shadow-lg w-fit ${
+                      msg.sender === 'user'
+                        ? 'bg-indigo-600 text-white rounded-br-none'
+                        : 'bg-gray-700 text-gray-200 rounded-bl-none'
+                    }`}
+                  >
+                    {/* 1. Always show text */}
+                    <p className="text-sm md:text-base whitespace-pre-wrap break-words mb-4">{msg.text}</p>
+
+                    {/* 2. Show table if JSON exists */}
+                    {msg.json && (
+                      <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
+                        <div className="text-sm text-gray-400 mb-2">JSON Data:</div>
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr>
+                              {Object.keys(msg.json[0]).map((header) => (
+                                <th
+                                  key={header}
+                                  className="px-4 py-2 text-left text-sm font-semibold text-white border-b border-gray-700 bg-gray-900"
+                                >
+                                  {header}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {msg.json.map((item: any, index: number) => (
+                              <tr key={index} className="border-b border-gray-700 hover:bg-gray-700">
+                                {Object.keys(msg.json[0]).map((header) => (
+                                  <td
+                                    key={`${index}-${header}`}
+                                    className="px-4 py-2 text-sm text-gray-300"
+                                  >
+                                    {String(item[header])}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* 3. Show workflow if type is workflow_plan */}
+                    {msg.type === 'workflow_plan' && msg.nodeList && (
+                      <div className="w-full bg-gray-800 rounded-lg p-2">
+                        <div className="text-sm text-gray-400 mb-2">Workflow:</div>
+                        <pre className="text-sm text-gray-300">
+                          {JSON.stringify(msg.nodeList, null, 2)}
+                        </pre>
+                      </div>
+                    )}
+
+                    <div className="text-xs opacity-70 mt-1">
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

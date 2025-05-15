@@ -117,7 +117,8 @@ export default function ChatPage() {
           chatId: chatId as string,
           text: error instanceof Error ? error.message : "I apologize, but I encountered an error loading the chat. Please try again.",
           sender: 'ai',
-          timestamp: new Date()
+          timestamp: new Date(),
+          type: 'simple_text'
         };
         setMessages([errorMessage]);
       }
@@ -232,7 +233,8 @@ export default function ChatPage() {
       chatId: chatId as string,
       text,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      type: 'simple_text'
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -353,7 +355,8 @@ Current user message: "${text}"`
         chatId: chatId as string,
         text: "I apologize, but I encountered an error. Please try again.",
         sender: 'ai',
-        timestamp: new Date()
+        timestamp: new Date(),
+        type: 'simple_text'
       };
       setMessages(prev => [...prev, errorMessage]);
     }
@@ -658,6 +661,40 @@ Current user message: "${text}"`
                       >
                         {msg.text}
                       </ReactMarkdown>
+                    </div>
+                  )}
+                  {msg.json && Array.isArray(msg.json) && msg.json.length > 0 && (
+                    <div className="mt-3 border-t border-gray-600 pt-3">
+                      <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr>
+                              {Object.keys(msg.json[0]).map((header) => (
+                                <th
+                                  key={header}
+                                  className="px-4 py-2 text-left text-sm font-semibold text-white border-b border-gray-700 bg-gray-900"
+                                >
+                                  {header}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {msg.json.map((item: any, index: number) => (
+                              <tr key={index} className="border-b border-gray-700 hover:bg-gray-700">
+                                {Object.keys(msg.json[0]).map((header) => (
+                                  <td
+                                    key={`${index}-${header}`}
+                                    className="px-4 py-2 text-sm text-gray-300"
+                                  >
+                                    {String(item[header])}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                   {msg.nodeList && (
