@@ -338,7 +338,14 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
                 )}
 
                 <div className="text-xs opacity-70 mt-1">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
+                  {new Date(msg.timestamp).toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                  })}
                 </div>
               </div>
             </div>
