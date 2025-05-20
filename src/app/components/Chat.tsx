@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, Layout } from 'lucide-react';
+import WorkflowDAG from './WorkflowDAG';
 
 interface ChatProps {
   chatId: string | null;
@@ -77,6 +78,8 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
   const { user, isLoading } = useUser();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
+  const [showDAG, setShowDAG] = useState(false);
 
   // Add effect to load messages when chatId is available
   useEffect(() => {
@@ -115,7 +118,7 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
       text,
       sender: 'user',
       timestamp: new Date(),
-      type: 'simple_text'
+      type: chatType === 'workflow' ? 'workflow_plan' : 'simple_text'
     };
 
     setMessages(prev => [...prev, userMessage]);
@@ -123,7 +126,7 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
 
     try {
       // Save user message
-      await fetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,72 +134,29 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
         body: JSON.stringify({
           chatId,
           message: userMessage,
+          chatType
         }),
       });
 
-      // Get AI response with chat history
-      const aiResponse = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: text,
-          chatId,
-          userId: user.sub,
-          messages: messages.map(msg => ({
-            role: msg.sender === 'user' ? 'user' : 'assistant',
-            content: msg.text
-          })),
-          fullPrompt: text
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        throw new Error('Failed to get AI response');
+      if (!response.ok) {
+        throw new Error('Failed to save message');
       }
 
-      const data = await aiResponse.json();
-      console.log('AI Response:', data);
-      const { text: aiText, json, type } = data;
-
-      if (!aiText && !json) {
-        throw new Error('Invalid AI response format');
+      // If this is a workflow chat, we expect a response with a workflow plan
+      if (chatType === 'workflow') {
+        const data = await response.json();
+        if (data.message && data.message.type === 'workflow_plan') {
+          setMessages(prev => [...prev, data.message]);
+        }
       }
-
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        chatId: chatId as string,
-        text: aiText || '',
-        sender: 'ai',
-        timestamp: new Date(),
-        type: json ? 'json' : 'simple_text',
-        json: json || undefined
-      };
-
-      console.log('Saving AI message:', aiMessage);
-
-      setMessages(prev => [...prev, aiMessage]);
-
-      // Save AI message
-      await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId,
-          message: aiMessage,
-        }),
-      });
     } catch (error) {
       console.error('Error sending message:', error);
       // Add error message to chat
       const errorMessage: Message = {
         id: Date.now().toString(),
         chatId: chatId as string,
-        text: "I apologize, but I encountered an error. Please try again.",
-        sender: 'ai',
+        text: "Error saving message. Please try again.",
+        sender: 'user',
         timestamp: new Date(),
         type: 'simple_text'
       };
@@ -217,116 +177,208 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white font-sans">
-      <div className="flex-1 flex flex-col">
-        {/* Chat Section */}
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-          <div className="pt-2">
-            {messages.map((msg) => {
-              // Debug log
-              console.log('Message:', {
-                id: msg.id,
-                type: msg.type,
-                text: msg.text,
-                json: msg.json,
-                hasJson: !!msg.json,
-                jsonIsArray: Array.isArray(msg.json),
-                jsonLength: msg.json?.length
-              });
+    <div className={`flex flex-col h-full relative ${showDAG ? 'w-1/3' : 'w-full'}`}>
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.map((msg) => {
+          // Debug log
+          console.log('Message:', {
+            id: msg.id,
+            type: msg.type,
+            text: msg.text,
+            json: msg.json,
+            hasJson: !!msg.json,
+            jsonIsArray: Array.isArray(msg.json),
+            jsonLength: msg.json?.length
+          });
 
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex ${
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                  } mb-4`}
-                >
-                  <div
-                    className={`p-3 md:p-4 rounded-xl shadow-lg w-fit ${
-                      msg.sender === 'user'
-                        ? 'bg-indigo-600 text-white rounded-br-none'
-                        : 'bg-gray-700 text-gray-200 rounded-bl-none'
-                    }`}
-                  >
-                    {/* 1. Always show text */}
-                    <p className="text-sm md:text-base whitespace-pre-wrap break-words mb-4">{msg.text}</p>
+          return (
+            <div
+              key={msg.id}
+              className={`flex ${
+                msg.sender === 'user' ? 'justify-end' : 'justify-start'
+              } mb-4`}
+            >
+              <div
+                className={`p-3 md:p-4 rounded-xl shadow-lg ${
+                  msg.sender === 'user'
+                    ? 'bg-indigo-600 text-white rounded-br-none'
+                    : 'bg-gray-700 text-gray-200 rounded-bl-none'
+                } max-w-[33vw]`}
+              >
+                {/* Message sender icon */}
+                <div className="flex items-center gap-2 mb-2">
+                  {msg.sender === 'user' ? (
+                    <User className="w-4 h-4" />
+                  ) : (
+                    <Bot className="w-4 h-4" />
+                  )}
+                  <span className="text-xs opacity-70">
+                    {msg.sender === 'user' ? 'You' : 'AI Assistant'}
+                  </span>
+                </div>
 
-                    {/* 2. Show table if JSON exists */}
-                    {msg.json && (
-                      <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
-                        <div className="text-sm text-gray-400 mb-2">JSON Data:</div>
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr>
-                              {Object.keys(msg.json[0]).map((header) => (
-                                <th
-                                  key={header}
-                                  className="px-4 py-2 text-left text-sm font-semibold text-white border-b border-gray-700 bg-gray-900"
-                                >
-                                  {header}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {msg.json.map((item: any, index: number) => (
-                              <tr key={index} className="border-b border-gray-700 hover:bg-gray-700">
-                                {Object.keys(msg.json[0]).map((header) => (
-                                  <td
-                                    key={`${index}-${header}`}
-                                    className="px-4 py-2 text-sm text-gray-300"
-                                  >
-                                    {String(item[header])}
-                                  </td>
-                                ))}
-                              </tr>
+                {/* 1. Always show text */}
+                <p className="text-sm md:text-base whitespace-pre-wrap break-words mb-4">{msg.text}</p>
+
+                {/* 2. Show table if JSON exists */}
+                {msg.json && (
+                  <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
+                    <div className="text-sm text-gray-400 mb-2">JSON Data:</div>
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr>
+                          {Object.keys(msg.json[0]).map((header) => (
+                            <th
+                              key={header}
+                              className="px-4 py-2 text-left text-sm font-semibold text-white border-b border-gray-700 bg-gray-900"
+                            >
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {msg.json.map((item: any, index: number) => (
+                          <tr key={index} className="border-b border-gray-700 hover:bg-gray-700">
+                            {Object.keys(msg.json[0]).map((header) => (
+                              <td
+                                key={`${index}-${header}`}
+                                className="px-4 py-2 text-sm text-gray-300"
+                              >
+                                {String(item[header])}
+                              </td>
                             ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
 
-                    {/* 3. Show workflow if type is workflow_plan */}
-                    {msg.type === 'workflow_plan' && msg.nodeList && (
-                      <div className="w-full bg-gray-800 rounded-lg p-2">
-                        <div className="text-sm text-gray-400 mb-2">Workflow:</div>
-                        <pre className="text-sm text-gray-300">
-                          {JSON.stringify(msg.nodeList, null, 2)}
-                        </pre>
-                      </div>
-                    )}
+                {/* 3. Show workflow if type is workflow_plan */}
+                {msg.type === 'workflow_plan' && msg.nodeList && msg.nodeList.length > 0 && (
+                  <div className="w-full bg-gray-800 rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="text-sm text-gray-400">Workflow Plan:</div>
+                      <button
+                        onClick={() => {
+                          console.log('View Workflow button clicked');
+                          if (!msg.nodeList) {
+                            console.warn('No nodeList found in message:', msg);
+                            return;
+                          }
+                          
+                          // Transform nodeList into the format expected by WorkflowDAG
+                          const nodes = msg.nodeList.map((node: any, index: number) => ({
+                            id: `node-${index}-${Date.now()}`,
+                            type: 'stylishDagreNode',
+                            data: {
+                              label: node.label,
+                              description: node.description,
+                              integrations: node.integrations || []
+                            },
+                            position: { x: 0, y: 0 },
+                            sourcePosition: 'right',
+                            targetPosition: 'left'
+                          }));
+                          
+                          console.log('Created nodes:', nodes);
+                          
+                          // Set the current workflow and show DAG
+                          const workflow = {
+                            id: msg.id,
+                            user_id: user?.sub || '',
+                            nodes,
+                            created_at: new Date(),
+                            message_id: msg.id,
+                            chat_id: chatId || '',
+                            maximized: true
+                          };
+                          
+                          console.log('Setting workflow:', workflow);
+                          setCurrentWorkflow(workflow);
+                          setShowDAG(true);
 
-                    <div className="text-xs opacity-70 mt-1">
-                      {new Date(msg.timestamp).toLocaleTimeString()}
+                          // Force maximize with a longer timeout to ensure state updates
+                          setTimeout(() => {
+                            console.log('Dispatching maximize event');
+                            const event = new CustomEvent('workflowMaximize', { 
+                              detail: { 
+                                maximized: true,
+                                workflow: workflow
+                              } 
+                            });
+                            window.dispatchEvent(event);
+                          }, 300);
+                        }}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                      >
+                        <Layout size={16} />
+                        View Workflow
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {msg.nodeList.map((node: any, index: number) => (
+                        <div key={index} className="bg-gray-700 rounded-lg p-3">
+                          <div className="font-medium text-white">{node.label}</div>
+                          <div className="text-sm text-gray-300 mt-1">{node.description}</div>
+                          {node.integrations && node.integrations.length > 0 && (
+                            <div className="flex gap-2 mt-2">
+                              {node.integrations.map((integration: string) => (
+                                <span key={integration} className="px-2 py-2 bg-gray-600 rounded text-xs text-gray-300">
+                                  {integration}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+                )}
 
-        {/* Input Section */}
-        <div className="flex-none p-4 border-t border-gray-700 bg-gray-800">
-          <div className="flex items-center space-x-2 bg-gray-700 rounded-xl p-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="flex-grow p-2 bg-transparent text-white placeholder-gray-400 focus:outline-none"
-            />
-            <button
-              onClick={() => handleSendMessage(inputText)}
-              disabled={!inputText.trim()}
-              className="p-2 rounded-lg text-indigo-400 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </div>
+                <div className="text-xs opacity-70 mt-1">
+                  {new Date(msg.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Input Section */}
+      <div className="border-t border-gray-700 p-4">
+        <div className="flex items-center space-x-2 bg-gray-700 rounded-xl p-2">
+          <input
+            type="text"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message..."
+            className="flex-grow p-2 bg-transparent text-white placeholder-gray-400 focus:outline-none"
+          />
+          <button
+            onClick={() => handleSendMessage(inputText)}
+            disabled={!inputText.trim()}
+            className="p-2 rounded-lg text-indigo-400 hover:bg-indigo-600 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send className="w-5 h-5" />
+          </button>
         </div>
       </div>
+
+      {/* WorkflowDAG Component */}
+      {showDAG && currentWorkflow && (
+        <div className="fixed top-0 right-0 w-2/3 h-full z-50">
+          <WorkflowDAG
+            steps={currentWorkflow.nodes}
+            onClose={() => {
+              setShowDAG(false);
+              setCurrentWorkflow(null);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 } 

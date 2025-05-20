@@ -182,52 +182,43 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const { fitView } = useReactFlow();
 
-  // Add fit view effect when nodes change
   useEffect(() => {
-    if (rfNodes.length > 0) {
-      setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 100);
-    }
-  }, [rfNodes, fitView]);
-
-  // Add fit view effect when maximized state changes
-  useEffect(() => {
-    if (rfNodes.length > 0) {
-      setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 100);
-    }
-  }, [maximized, rfNodes, fitView]);
-
-  // Custom node change handler that respects the lock state
-  const handleNodesChange = useCallback((changes: any[]) => {
-    if (!isLocked) {
-      onNodesChange(changes);
-    }
-  }, [isLocked, onNodesChange]);
-
-  // Add window resize handler
-  useEffect(() => {
-    const updateDimensions = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
+    const handleMaximize = (event: CustomEvent) => {
+      console.log('Maximize event received:', event.detail);
+      const { maximized } = event.detail;
+      setMaximized(true); // Force maximize
       setDimensions({
-        width: maximized ? width : width * (2/3),
-        height: maximized ? height : height * (2/3)
+        width: window.innerWidth,
+        height: window.innerHeight
       });
+      
+      // Force fit view after a short delay
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
     };
 
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, [maximized]);
+    window.addEventListener('workflowMaximize', handleMaximize as EventListener);
+    return () => {
+      window.removeEventListener('workflowMaximize', handleMaximize as EventListener);
+    };
+  }, [fitView]);
+
+  useEffect(() => {
+    if (steps && steps.length > 0) {
+      setMaximized(true);
+      setDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    }
+  }, [steps]);
 
   useEffect(() => {
     const timestamp = new Date().toLocaleTimeString();
     console.log(`[WorkflowDAG-Stylish ${timestamp}] useEffect. Input steps (Count: ${steps?.length})`);
     if (steps) {
-        console.log(`[WorkflowDAG-Stylish ${timestamp}] Raw input steps:`, JSON.parse(JSON.stringify(steps)));
+      console.log(`[WorkflowDAG-Stylish ${timestamp}] Raw input steps:`, JSON.parse(JSON.stringify(steps)));
     }
 
     if (!steps || !Array.isArray(steps) || steps.length === 0) {
@@ -273,7 +264,7 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
       indexToActualIdMap.set(index, finalNodeId);
 
       if (finalNodeId !== originalId && hasValidOriginalId) {
-          console.warn(`[WorkflowDAG-Stylish ${timestamp}] Original ID '${originalId}' (Label: '${label}') was uniquified to '${finalNodeId}'.`);
+        console.warn(`[WorkflowDAG-Stylish ${timestamp}] Original ID '${originalId}' (Label: '${label}') was uniquified to '${finalNodeId}'.`);
       }
 
       newFlowNodes.push({
@@ -281,6 +272,8 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         type: 'stylishDagreNode',
         data: { label, description, icon },
         position: { x: 0, y: 0 },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left
       });
     });
 
@@ -300,25 +293,66 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
             markerEnd: { type: MarkerType.ArrowClosed, color: '#7f8c8d', width: 20, height: 20 },
           });
         } else {
-            console.warn(`[WorkflowDAG-Stylish ${timestamp}] Could not create edge between original step index ${i} and ${i+1} due to missing mapped IDs.`);
+          console.warn(`[WorkflowDAG-Stylish ${timestamp}] Could not create edge between original step index ${i} and ${i+1} due to missing mapped IDs.`);
         }
       }
     }
     
     console.log(`[WorkflowDAG-Stylish ${timestamp}] Nodes prepared for Dagre (Count: ${newFlowNodes.length}):`, JSON.parse(JSON.stringify(newFlowNodes.map(n=>({id:n.id, label:n.data.label})))));
     console.log(`[WorkflowDAG-Stylish ${timestamp}] Edges prepared for Dagre (Count: ${newFlowEdges.length}):`, JSON.parse(JSON.stringify(newFlowEdges.map(e=>({id:e.id,s:e.source,t:e.target})))));
-
+    
     if (newFlowNodes.length > 0) {
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newFlowNodes, newFlowEdges);
-        console.log(`[WorkflowDAG-Stylish ${timestamp}] Layouted nodes (Count: ${layoutedNodes.length}):`, JSON.parse(JSON.stringify(layoutedNodes.map(n => ({id:n.id, label:n.data.label, x:n.position.x, y:n.position.y, type:n.type})))));
-        setRfNodes(layoutedNodes);
-        setRfEdges(layoutedEdges);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(newFlowNodes, newFlowEdges);
+      console.log(`[WorkflowDAG-Stylish ${timestamp}] Layouted nodes (Count: ${layoutedNodes.length}):`, JSON.parse(JSON.stringify(layoutedNodes.map(n => ({id:n.id, label:n.data.label, x:n.position.x, y:n.position.y, type:n.type})))));
+      setRfNodes(layoutedNodes);
+      setRfEdges(layoutedEdges);
     } else {
-        setRfNodes([]);
-        setRfEdges([]);
+      setRfNodes([]);
+      setRfEdges([]);
     }
-
   }, [steps, setRfNodes, setRfEdges]);
+
+  // Add fit view effect when nodes change
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      console.log('Fitting view with nodes:', rfNodes);
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [rfNodes, fitView]);
+
+  // Add fit view effect when maximized state changes
+  useEffect(() => {
+    if (rfNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [maximized, rfNodes, fitView]);
+
+  // Custom node change handler that respects the lock state
+  const handleNodesChange = useCallback((changes: any[]) => {
+    if (!isLocked) {
+      onNodesChange(changes);
+    }
+  }, [isLocked, onNodesChange]);
+
+  // Add window resize handler
+  useEffect(() => {
+    const updateDimensions = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setDimensions({
+        width: maximized ? width : width * (2/3),
+        height: maximized ? height : height * (2/3)
+      });
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, [maximized]);
 
   const toggleMaximize = () => {
     if (maximized) {
@@ -370,7 +404,8 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
         top: maximized ? 0 : 'auto',
         left: maximized ? 0 : 'auto',
         right: maximized ? 0 : 'auto',
-        bottom: maximized ? 0 : 'auto'
+        bottom: maximized ? 0 : 'auto',
+        zIndex: maximized ? 100 : 'auto'
       }}
     >
       <div className="absolute top-4 right-4 z-[101] flex gap-2">
@@ -417,21 +452,7 @@ const WorkflowDAGInner: React.FC<WorkflowDAGProps> = ({ steps, onClose }) => {
             className="react-flow__controls-button"
             title={isLocked ? "Unlock Layout" : "Lock Layout"}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-gray-700">
-              <g>
-                {isLocked ? (
-                  <>
-                    <path d="M12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z" fill="currentColor"/>
-                    <path d="M18 8H17V6C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6V8H6C4.9 8 4 8.9 4 10V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V10C20 8.9 19.1 8 18 8ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17ZM15.1 8H8.9V6C8.9 4.29 10.29 2.9 12 2.9C13.71 2.9 15.1 4.29 15.1 6V8Z" fill="currentColor"/>
-                  </>
-                ) : (
-                  <>
-                    <path d="M12 17C12.5523 17 13 16.5523 13 16C13 15.4477 12.5523 15 12 15C11.4477 15 11 15.4477 11 16C11 16.5523 11.4477 17 12 17Z" fill="currentColor"/>
-                    <path d="M18 8H17V6C17 3.24 14.76 1 12 1C9.24 1 7 3.24 7 6H8.9C8.9 4.29 10.29 2.9 12 2.9C13.71 2.9 15.1 4.29 15.1 6V8H6C4.9 8 4 8.9 4 10V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V10C20 8.9 19.1 8 18 8ZM12 17C10.9 17 10 16.1 10 15C10 13.9 10.9 13 12 13C13.1 13 14 13.9 14 15C14 16.1 13.1 17 12 17Z" fill="currentColor"/>
-                  </>
-                )}
-              </g>
-            </svg>
+            <Lock size={16} />
           </button>
         </Controls>
       </ReactFlow>

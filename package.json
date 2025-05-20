@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^3.7.0",
-    "@google/generative-ai": "^0.24.1",
     "@types/dagre": "^0.7.52",
     "@types/graphlib": "^2.1.12",
     "dagre": "^0.8.5",

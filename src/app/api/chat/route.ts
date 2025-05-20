@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    const { chatId, message } = await request.json();
+    const { chatId, message, chatType } = await request.json();
     const userId = session.user.sub;
 
     if (!chatId || !message || !userId) {
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Save message
+    // Save user message
     const messageToSave = {
       ...message,
       chatId,
@@ -129,6 +129,44 @@ export async function POST(request: NextRequest) {
     console.log('Saving message:', JSON.stringify(messageToSave, null, 2));
 
     await db.collection('messages').insertOne(messageToSave);
+
+    // If this is a workflow chat, generate a workflow plan response
+    if (chatType === 'workflow') {
+      // Generate a workflow plan based on the user's message
+      const workflowPlan = {
+        id: Date.now().toString(),
+        chatId,
+        text: "Here's your workflow plan:",
+        sender: 'ai',
+        timestamp: new Date(),
+        type: 'workflow_plan',
+        nodeList: [
+          {
+            label: "Step 1: Initial Setup",
+            description: "Set up the basic environment and dependencies",
+            integrations: ["GitHub", "Node.js"]
+          },
+          {
+            label: "Step 2: Core Implementation",
+            description: "Implement the main functionality",
+            integrations: ["API", "Database"]
+          },
+          {
+            label: "Step 3: Testing & Deployment",
+            description: "Test the implementation and deploy to production",
+            integrations: ["CI/CD", "Cloud Platform"]
+          }
+        ]
+      };
+
+      // Save the workflow plan message
+      await db.collection('messages').insertOne(workflowPlan);
+
+      return NextResponse.json({ 
+        success: true,
+        message: workflowPlan
+      });
+    }
 
     return NextResponse.json({ success: true });
 

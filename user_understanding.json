@@ -1,0 +1,18 @@
+{
+  "user_understanding": "The user has no specific technical preferences and is open to suggestions for the best technology solutions.",
+  "problem_understanding": "The user wants to automate email and phone campaigns using lead data from Google Sheets. They wish to call customers if a phone number is available and send emails if the email address is available. A briefing email should be sent to them summarizing the actions taken and responses from the leads.",
+  "workflow_tech_understanding": "The user wants recommendations for the best technology solutions and assistance with any necessary integrations.",
+  "user_tech_list": ["Google Sheets"],
+  "required_tech_list": ["Google Sheets", "Gmail API", "Twilio API", "Notification/Reporting Service"],
+  "user_last_message_intent": "The user is requesting the creation of a workflow with technology recommendations and assistance with integrations.",
+  "clarification_questions": [
+    "What format would you like the briefing email to be in?",
+    "Are there specific metrics you wish to include in your briefing email, such as the number of calls and emails sent or responses received?"
+  ],
+  "is_user_clarification_needed": true,
+  "is_workflow_design_approved": false,
+  "is_workflow_build_approved": false,
+  "do_we_have_enough_information_to_develop_workflow": false,
+  "do_we_have_enough_information_to_design_workflow": false,
+  "do_we_have_enough_information_to_run_workflow": false
+} 
