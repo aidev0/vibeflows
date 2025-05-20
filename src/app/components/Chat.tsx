@@ -269,20 +269,31 @@ export default function Chat({ chatId, onChatIdChange, systemMessage, welcomeMes
                           }
                           
                           // Transform nodeList into the format expected by WorkflowDAG
-                          const nodes = msg.nodeList.map((node: any, index: number) => ({
-                            id: `node-${index}-${Date.now()}`,
-                            type: 'stylishDagreNode',
-                            data: {
-                              label: node.label,
-                              description: node.description,
-                              integrations: node.integrations || []
-                            },
-                            position: { x: 0, y: 0 },
-                            sourcePosition: 'right',
-                            targetPosition: 'left'
-                          }));
+                          const nodes = msg.nodeList.map((node: any, index: number) => {
+                            if (!node) {
+                              console.warn('Undefined node at index:', index);
+                              return null;
+                            }
+                            return {
+                              id: `node-${index}-${Date.now()}`,
+                              type: 'stylishDagreNode',
+                              data: {
+                                label: node.label || `Step ${index + 1}`,
+                                description: node.description || '',
+                                integrations: node.integrations || []
+                              },
+                              position: { x: 0, y: 0 },
+                              sourcePosition: 'right',
+                              targetPosition: 'left'
+                            };
+                          }).filter(Boolean); // Remove any null nodes
                           
                           console.log('Created nodes:', nodes);
+                          
+                          if (nodes.length === 0) {
+                            console.warn('No valid nodes found in nodeList');
+                            return;
+                          }
                           
                           // Set the current workflow and show DAG
                           const workflow = {
