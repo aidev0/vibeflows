@@ -3,8 +3,13 @@
 import { useUser } from '@auth0/nextjs-auth0/client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { Menu, X, MessageSquare } from 'lucide-react';
+import { useState, Dispatch, SetStateAction } from 'react';
+
+interface NavbarProps {
+  showChatList: boolean;
+  setShowChatList: Dispatch<SetStateAction<boolean>>;
+}
 
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
@@ -13,7 +18,7 @@ const getBaseUrl = () => {
   return process.env.AUTH0_BASE_URL || 'https://vibeflows.app';
 };
 
-export default function Navbar() {
+export default function Navbar({ showChatList, setShowChatList }: NavbarProps) {
   const { user, isLoading } = useUser();
   const pathname = usePathname();
   const isAdmin = user?.sub === process.env.ADMIN_ID;
@@ -46,6 +51,15 @@ export default function Navbar() {
               <>
                 {user ? (
                   <>
+                    {/* Messages Menu Button */}
+                    <button
+                      onClick={() => setShowChatList(!showChatList)}
+                      className="p-2 mr-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 focus:outline-none"
+                      aria-label="Toggle chat history"
+                    >
+                      <MessageSquare className="h-6 w-6" />
+                    </button>
+
                     <div className="relative">
                       <button
                         onClick={() => setIsMenuOpen(!isMenuOpen)}

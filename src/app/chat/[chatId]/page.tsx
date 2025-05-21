@@ -46,7 +46,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [showChatList, setShowChatList] = useState(false);
+  const [showChatList, setShowChatList] = useState(true);
   const [allChats, setAllChats] = useState<{ id: string; title: string; created_at: string; messageCount: number }[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -388,32 +388,27 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Chat Section */}
-      <div className={`flex flex-col h-full ${showDAG ? 'w-1/3' : 'w-full'}`}>
-        <Chat
-          chatId={chatId as string}
-          onChatIdChange={(id) => router.push(`/chat/${id}`)}
-          systemMessage="You are a helpful AI assistant."
-          welcomeMessage="Hi! I am VibeFlows AI. How can I help you today?"
-          chatType="workflow"
-        />
-      </div>
-
-      {/* DAG Visualization Section */}
-      {showDAG && currentWorkflow && (
-        <div className="w-2/3 border-l border-gray-700 bg-gray-800">
-          <div className="h-full overflow-hidden">
-            <WorkflowDAG 
-              steps={currentWorkflow.nodes} 
-              onClose={() => {
-                setShowDAG(false);
-                setCurrentWorkflow(null);
-              }}
-            />
-          </div>
+    <div className="flex flex-col min-h-screen bg-gray-900">
+      <Navbar showChatList={showChatList} setShowChatList={setShowChatList} />
+      <main className="flex-1 pt-16">
+        <div className="h-[calc(100vh-4rem)]">
+          <Chat
+            chatId={chatId as string}
+            onChatIdChange={(id) => router.push(`/chat/${id}`)}
+            systemMessage="You are a helpful AI assistant."
+            welcomeMessage="Hi! I am VibeFlows AI. How can I help you today?"
+            chatType="workflow"
+            allChats={allChats.map(chat => ({
+              ...chat,
+              lastMessageAt: chat.created_at
+            }))}
+            onDeleteChat={handleDeleteChat}
+            onRenameChat={handleRenameChat}
+            showChatList={showChatList}
+            setShowChatList={setShowChatList}
+          />
         </div>
-      )}
+      </main>
     </div>
   );
 }

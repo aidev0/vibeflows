@@ -1,16 +1,13 @@
 export interface Node {
-  id?: string;
-  type?: string;
-  label?: string;
-  description?: string;
-  integrations?: string[];
-  data?: {
+  id: string;
+  type: string;
+  data: {
     label: string;
-    description?: string;
-    integrations?: string[];
-    [key: string]: any;
+    description: string;
+    tools: string[];
+    notes: string;
   };
-  position?: {
+  position: {
     x: number;
     y: number;
   };
@@ -22,20 +19,24 @@ export interface Message {
   text: string;
   sender: 'user' | 'ai';
   timestamp: Date;
-  type: 'simple_text' | 'json' | 'workflow_plan';
+  type: 'simple_text' | 'workflow_plan';
   json?: any;
-  nodeList?: {
-    label: string;
-    description: string;
-    integrations: string[];
-  }[];
 }
 
 export interface Chat {
   id: string;
-  userId: string;
   title: string;
-  type: 'chat';
-  createdAt: Date;
-  updatedAt: Date;
+  created_at: string;
+  messageCount: number;
+  lastMessageAt: string;
+  user_id: string;
+}
+
+export interface Workflow {
+  id: string;
+  user_id: string;
+  nodes: Node[];
+  created_at: Date;
+  message_id: string;
+  chat_id: string;
 } 
