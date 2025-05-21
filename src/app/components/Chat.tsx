@@ -307,7 +307,9 @@ export default function Chat({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
-          {messages.map((msg) => {
+          {messages
+            .filter(msg => ['user', 'ai', 'assistant', 'system'].includes(msg.sender))
+            .map((msg) => {
             // Debug log
             console.log('Message:', {
               id: msg.id,
