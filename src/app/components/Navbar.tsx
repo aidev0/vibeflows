@@ -68,7 +68,52 @@ export default function Navbar() {
                                   ? 'text-indigo-400'
                                   : 'text-gray-300 hover:text-white hover:bg-gray-700'
                               }`}
-                              onClick={() => setIsMenuOpen(false)}
+                              onClick={async (e) => {
+                                e.preventDefault();
+                                setIsMenuOpen(false);
+                                
+                                try {
+                                  // Fetch existing chats
+                                  const chatsResponse = await fetch('/api/chats');
+                                  if (!chatsResponse.ok) {
+                                    throw new Error('Failed to fetch chats');
+                                  }
+                                  
+                                  const chatsData = await chatsResponse.json();
+                                  const existingChats = chatsData.chats || [];
+                                  
+                                  if (existingChats.length > 0) {
+                                    // If there are existing chats, redirect to the most recent one
+                                    const mostRecentChat = existingChats[0];
+                                    window.location.href = `/chat/${mostRecentChat.id}`;
+                                  } else {
+                                    // If no chats exist, create a new one
+                                    const response = await fetch('/api/chat/create', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                      },
+                                      body: JSON.stringify({
+                                        title: 'New Chat',
+                                        type: 'workflow'
+                                      }),
+                                    });
+
+                                    if (!response.ok) {
+                                      throw new Error('Failed to create chat');
+                                    }
+
+                                    const data = await response.json();
+                                    if (data?.chatId) {
+                                      window.location.href = `/chat/${data.chatId}`;
+                                    }
+                                  }
+                                } catch (error) {
+                                  console.error('Error:', error);
+                                  // Fallback to main chat page if something goes wrong
+                                  window.location.href = '/chat';
+                                }
+                              }}
                             >
                               AI
                             </Link>

@@ -11,7 +11,7 @@ export async function GET() {
 
     const { db } = await connectToDatabase();
 
-    // Get the latest message for the user
+    // Get the latest message for the current user
     const latestMessage = await db.collection('messages')
       .aggregate([
         {
@@ -38,16 +38,22 @@ export async function GET() {
       ])
       .toArray();
 
+    console.log('Latest message query result:', latestMessage); // Debug log
+
     if (latestMessage.length === 0) {
+      console.log('No messages found for user:', session.user.sub); // Debug log
       return NextResponse.json({ latestMessage: null });
     }
 
-    return NextResponse.json({ 
+    const response = { 
       latestMessage: {
         ...latestMessage[0],
         chatId: latestMessage[0].chatId
       }
-    });
+    };
+    console.log('Returning response:', response); // Debug log
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('Error fetching latest message:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

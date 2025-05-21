@@ -105,18 +105,6 @@ export async function POST(request: NextRequest) {
     await client.connect();
     const db = client.db('vibeflows');
 
-    // Verify chat exists
-    const chat = await db.collection('chats').findOne({
-      _id: new ObjectId(chatId)
-    });
-
-    if (!chat) {
-      return NextResponse.json({ 
-        error: 'Chat not found',
-        message: 'The specified chat does not exist'
-      }, { status: 404 });
-    }
-
     // Save user message
     const messageToSave = {
       ...message,
@@ -126,49 +114,12 @@ export async function POST(request: NextRequest) {
       json: message.json || undefined
     };
 
-    console.log('Saving message:', JSON.stringify(messageToSave, null, 2));
-
     await db.collection('messages').insertOne(messageToSave);
 
-    // If this is a workflow chat, generate a workflow plan response
-    if (chatType === 'workflow') {
-      // Generate a workflow plan based on the user's message
-      const workflowPlan = {
-        id: Date.now().toString(),
-        chatId,
-        text: "Here's your workflow plan:",
-        sender: 'ai',
-        timestamp: new Date(),
-        type: 'workflow_plan',
-        nodeList: [
-          {
-            label: "Step 1: Initial Setup",
-            description: "Set up the basic environment and dependencies",
-            integrations: ["GitHub", "Node.js"]
-          },
-          {
-            label: "Step 2: Core Implementation",
-            description: "Implement the main functionality",
-            integrations: ["API", "Database"]
-          },
-          {
-            label: "Step 3: Testing & Deployment",
-            description: "Test the implementation and deploy to production",
-            integrations: ["CI/CD", "Cloud Platform"]
-          }
-        ]
-      };
-
-      // Save the workflow plan message
-      await db.collection('messages').insertOne(workflowPlan);
-
-      return NextResponse.json({ 
-        success: true,
-        message: workflowPlan
-      });
-    }
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ 
+      success: true,
+      message: messageToSave
+    });
 
   } catch (error) {
     console.error('Error saving message:', error);

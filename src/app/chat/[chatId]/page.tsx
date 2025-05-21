@@ -46,7 +46,7 @@ export default function ChatPage() {
   const [inputText, setInputText] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [showChatList, setShowChatList] = useState(false);
+  const [showChatList, setShowChatList] = useState(searchParams.get('showChatList') === 'true');
   const [allChats, setAllChats] = useState<{ id: string; title: string; created_at: string; messageCount: number }[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -59,9 +59,8 @@ export default function ChatPage() {
       if (!user?.sub) return;
 
       try {
-        // If no chatId or chatId is 'new', check if we have existing chats
+        // If no chatId or chatId is 'new', load the latest chat
         if (!chatId || chatId === 'new') {
-          // First check if we have any existing chats
           const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
           if (chatsResponse.ok) {
             const chatsData = await chatsResponse.json();
@@ -74,47 +73,8 @@ export default function ChatPage() {
               return;
             }
           }
-
-          // Only create a new chat if we have no existing chats
-          const response = await fetch('/api/chat/create', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              title: 'New Chat',
-              type: 'chat'
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to create chat');
-          }
-
-          const data = await response.json();
-          if (!data?.chatId) {
-            throw new Error('Invalid response format');
-          }
-
-          // Add welcome message
-          const welcomeMessage = {
-            chatId: data.chatId,
-            message: {
-              id: Date.now().toString(),
-              chatId: data.chatId,
-              text: "Hi! How can I help you today?",
-              sender: 'ai',
-              timestamp: new Date(),
-              type: 'simple_text'
-            }
-          };
-
-          await fetch('/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(welcomeMessage),
-          });
-
-          // Redirect to the new chat
-          router.push(`/chat/${data.chatId}`);
+          // If no chats exist, redirect to home
+          router.push('/');
           return;
         }
 
@@ -123,12 +83,14 @@ export default function ChatPage() {
         const response = await fetch(`/api/chat?chatId=${chatId}`);
         
         if (!response.ok) {
-          const errorData = await response.json();
+          const errorData = await response.json().catch(() => ({}));
           console.error('Chat load error:', errorData);
           
           // Handle specific error cases with user-friendly messages
           if (response.status === 404) {
-            throw new Error(errorData.message || 'This chat no longer exists or has been deleted.');
+            // If chat doesn't exist, redirect to home
+            router.push('/');
+            return;
           } else if (response.status === 401) {
             throw new Error(errorData.message || 'You must be logged in to access this chat.');
           } else if (response.status === 400) {
@@ -295,8 +257,8 @@ export default function ChatPage() {
     setInputText('');
 
     try {
-      // Save user message
-      await fetch('/api/chat', {
+      // Only save user message to database
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -306,18 +268,12 @@ export default function ChatPage() {
           message: userMessage,
         }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to save message');
+      }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        chatId: chatId as string,
-        text: "Error saving message. Please try again.",
-        sender: 'user',
-        timestamp: new Date(),
-        type: 'simple_text'
-      };
-      setMessages(prev => [...prev, errorMessage]);
     }
   };
 
@@ -334,7 +290,7 @@ export default function ChatPage() {
         throw new Error('Failed to delete chat');
       }
 
-      // Remove chat from list
+      // Remove chat from state immediately
       setAllChats(prev => prev.filter(chat => chat.id !== chatIdToDelete));
 
       // If we're currently in the deleted chat, redirect to the most recent chat
@@ -343,7 +299,8 @@ export default function ChatPage() {
         const remainingChats = allChats.filter(chat => chat.id !== chatIdToDelete);
         if (remainingChats.length > 0) {
           const mostRecentChat = remainingChats[0]; // Already sorted by date
-          router.push(`/chat/${mostRecentChat.id}`);
+          // Preserve showChatList state when redirecting
+          router.push(`/chat/${mostRecentChat.id}?showChatList=${showChatList}`);
         } else {
           // If no chats left, redirect to home
           router.push('/');
@@ -351,6 +308,14 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error deleting chat:', error);
+      // If there's an error, we should refresh the chat list to ensure consistency
+      const response = await fetch(`/api/chats?userId=${user.sub}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.chats) {
+          setAllChats(data.chats);
+        }
+      }
     }
   };
 

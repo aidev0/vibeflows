@@ -1,11 +1,64 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import Navbar from './components/Navbar';
 
 export default function Home() {
   const { user, isLoading } = useUser();
+  const router = useRouter();
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+
+  const handleStartChat = async () => {
+    setIsLoadingChat(true);
+    try {
+      // First try to fetch existing chats
+      const chatsResponse = await fetch('/api/chats');
+      if (!chatsResponse.ok) {
+        throw new Error('Failed to fetch chats');
+      }
+      
+      const chatsData = await chatsResponse.json();
+      const existingChats = chatsData.chats || [];
+      
+      if (existingChats.length > 0) {
+        // If there are existing chats, redirect to the most recent one
+        const mostRecentChat = existingChats[0];
+        router.push(`/chat/${mostRecentChat.id}`);
+      } else {
+        // If no chats exist, create a new one
+        const response = await fetch('/api/chat/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title: 'New Workflow',
+            type: 'workflow'
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create chat');
+        }
+
+        const data = await response.json();
+        if (!data?.chatId) {
+          throw new Error('Invalid response format');
+        }
+
+        router.push(`/chat/${data.chatId}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      // Fallback to main chat page if something goes wrong
+      router.push('/chat');
+    } finally {
+      setIsLoadingChat(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white">
@@ -23,18 +76,20 @@ export default function Home() {
           Finally, a work automation platform that gives you enterprise-grade power without the complexity. Just tell our AI what you want to automate, and it handles the rest.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-6 px-4">
-          <Link
-            href="/chat"
-            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg"
+          <button
+            onClick={handleStartChat}
+            disabled={isLoadingChat}
+            className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:opacity-90 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start Automating Free
-          </Link>
-          <Link
-            href="/chat"
-            className="w-full sm:w-auto border-2 border-gray-200 text-gray-800 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-50 transition-all transform hover:scale-105"
+            {isLoadingChat ? 'Loading...' : 'Start Automating Free'}
+          </button>
+          <button
+            onClick={handleStartChat}
+            disabled={isLoadingChat}
+            className="w-full sm:w-auto border-2 border-gray-200 text-gray-800 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-50 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            See How It Works
-          </Link>
+            {isLoadingChat ? 'Loading...' : 'See How It Works'}
+          </button>
         </div>
       </main>
       {/* Features Section */}
@@ -78,12 +133,13 @@ export default function Home() {
           <p className="text-lg md:text-xl mb-6 md:mb-8 max-w-2xl mx-auto">
             Get the power of the most advanced AI without writing a single line of code or complex configurations. You just vibe and let us do the work.
           </p>
-          <Link
-            href="/chat"
-            className="inline-block bg-white text-blue-600 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg"
+          <button
+            onClick={handleStartChat}
+            disabled={isLoadingChat}
+            className="inline-block bg-white text-blue-600 px-6 py-3 md:px-8 md:py-4 rounded-xl text-base md:text-lg font-semibold hover:bg-gray-100 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Start Your Free Trial
-          </Link>
+            {isLoadingChat ? 'Loading...' : 'Start Your Free Trial'}
+          </button>
         </div>
       </div>
       {/* Footer */}

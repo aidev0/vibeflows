@@ -96,6 +96,7 @@ export default function Chat({
   const [inputText, setInputText] = useState('');
   const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
   const [showDAG, setShowDAG] = useState(false);
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   // Add effect to load messages when chatId is available
   useEffect(() => {
@@ -129,19 +130,19 @@ export default function Chat({
     if (!text.trim() || !chatId || !user?.sub) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `user-${Date.now()}`,
       chatId: chatId as string,
       text,
       sender: 'user',
       timestamp: new Date(),
-      type: chatType === 'workflow' ? 'workflow_plan' : 'simple_text'
+      type: 'simple_text'
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInputText('');
 
     try {
-      // Save user message
+      // Save user message to database
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -158,25 +159,31 @@ export default function Chat({
         throw new Error('Failed to save message');
       }
 
-      // If this is a workflow chat, we expect a response with a workflow plan
-      if (chatType === 'workflow') {
-        const data = await response.json();
-        if (data.message && data.message.type === 'workflow_plan') {
-          setMessages(prev => [...prev, data.message]);
-        }
+      // Reload messages after saving
+      const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        setMessages(messagesData.messages || []);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      // Add error message to chat
-      const errorMessage: Message = {
-        id: Date.now().toString(),
-        chatId: chatId as string,
-        text: "Error saving message. Please try again.",
-        sender: 'user',
-        timestamp: new Date(),
-        type: 'simple_text'
-      };
-      setMessages(prev => [...prev, errorMessage]);
+    }
+  };
+
+  const handleDeleteChat = async (chatIdToDelete: string) => {
+    if (!user?.sub) return;
+    
+    try {
+      setDeletingChatId(chatIdToDelete);
+      await onDeleteChat(chatIdToDelete);
+      // Clear messages if we deleted the current chat
+      if (chatIdToDelete === chatId) {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    } finally {
+      setDeletingChatId(null);
     }
   };
 
@@ -201,27 +208,89 @@ export default function Chat({
             <h2 className="text-white text-lg font-semibold">Chat History</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-4">
+            <button
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/chat/create', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      title: 'New Chat',
+                      type: 'workflow'
+                    }),
+                  });
+
+                  if (!response.ok) {
+                    throw new Error('Failed to create chat');
+                  }
+
+                  const data = await response.json();
+                  if (data?.chatId) {
+                    // Create welcome message
+                    const welcomeMessage = {
+                      chatId: data.chatId,
+                      message: {
+                        id: `ai-${Date.now()}`,
+                        chatId: data.chatId,
+                        text: `Hi ${user?.name || 'there'}, how can I help you?`,
+                        sender: 'ai',
+                        timestamp: new Date(),
+                        type: 'simple_text'
+                      }
+                    };
+
+                    // Save welcome message to database
+                    const messageResponse = await fetch('/api/chat', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(welcomeMessage),
+                    });
+
+                    if (!messageResponse.ok) {
+                      console.error('Failed to send welcome message');
+                    }
+
+                    onChatIdChange(data.chatId);
+                  }
+                } catch (error) {
+                  console.error('Error creating chat:', error);
+                }
+              }}
+              className="w-full mb-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              New Chat
+            </button>
             <div className="space-y-2">
-              {allChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className="flex items-center justify-between p-2 hover:bg-gray-700 rounded cursor-pointer"
-                  onClick={() => onChatIdChange(chat.id)}
-                >
-                  <span className="text-white truncate">{chat.title}</span>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteChat(chat.id);
-                      }}
-                      className="text-gray-400 hover:text-red-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+              {allChats
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                .map((chat) => (
+                  <div
+                    key={chat.id}
+                    className="flex items-center justify-between p-2 hover:bg-gray-700 rounded cursor-pointer"
+                    onClick={() => onChatIdChange(chat.id)}
+                  >
+                    <span className="text-white truncate">{chat.title}</span>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteChat(chat.id);
+                        }}
+                        className={`text-gray-400 hover:text-red-500 ${deletingChatId === chat.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={deletingChatId === chat.id}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           </div>
         </div>
@@ -250,9 +319,14 @@ export default function Chat({
               jsonLength: msg.json?.length
             });
 
+            // Convert timestamp to Date if it's a string
+            const timestamp = typeof msg.timestamp === 'string' 
+              ? new Date(msg.timestamp).getTime() 
+              : msg.timestamp.getTime();
+
             return (
               <div
-                key={msg.id}
+                key={`${msg.id}-${timestamp}`}
                 className={`flex ${
                   msg.sender === 'user' ? 'justify-end' : 'justify-start'
                 } mb-4`}
