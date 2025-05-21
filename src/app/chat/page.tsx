@@ -105,8 +105,10 @@ const ChatPageContent = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900">
-      <div className="text-white text-xl">Creating new chat...</div>
+    <div className="pt-16 min-h-screen bg-gray-900">
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="text-white text-xl">Creating new chat...</div>
+      </div>
     </div>
   );
 };

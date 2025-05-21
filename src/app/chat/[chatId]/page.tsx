@@ -59,9 +59,62 @@ export default function ChatPage() {
       if (!user?.sub) return;
 
       try {
-        // If no chatId or chatId is 'new', redirect to the main chat page
+        // If no chatId or chatId is 'new', check if we have existing chats
         if (!chatId || chatId === 'new') {
-          router.push('/chat');
+          // First check if we have any existing chats
+          const chatsResponse = await fetch(`/api/chats?userId=${user.sub}`);
+          if (chatsResponse.ok) {
+            const chatsData = await chatsResponse.json();
+            if (chatsData.chats && chatsData.chats.length > 0) {
+              // If we have existing chats, redirect to the most recent one
+              const mostRecentChat = chatsData.chats.sort((a: any, b: any) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              )[0];
+              router.push(`/chat/${mostRecentChat.id}`);
+              return;
+            }
+          }
+
+          // Only create a new chat if we have no existing chats
+          const response = await fetch('/api/chat/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              title: 'New Chat',
+              type: 'chat'
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to create chat');
+          }
+
+          const data = await response.json();
+          if (!data?.chatId) {
+            throw new Error('Invalid response format');
+          }
+
+          // Add welcome message
+          const welcomeMessage = {
+            chatId: data.chatId,
+            message: {
+              id: Date.now().toString(),
+              chatId: data.chatId,
+              text: "Hi! How can I help you today?",
+              sender: 'ai',
+              timestamp: new Date(),
+              type: 'simple_text'
+            }
+          };
+
+          await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(welcomeMessage),
+          });
+
+          // Redirect to the new chat
+          router.push(`/chat/${data.chatId}`);
           return;
         }
 
@@ -268,47 +321,6 @@ export default function ChatPage() {
     }
   };
 
-  // Add useEffect to fetch all chats
-  useEffect(() => {
-    const fetchAllChats = async () => {
-      if (!user?.sub) {
-        console.log('No user ID available');
-        return;
-      }
-      try {
-        console.log('Fetching chats for user:', user.sub);
-        const response = await fetch(`/api/chats?userId=${user.sub}`);
-        console.log('Chat fetch response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Received chats data:', data);
-          
-          if (!data.chats || !Array.isArray(data.chats)) {
-            console.error('Invalid chats data format:', data);
-            return;
-          }
-
-          // Sort chats by creation date, newest first
-          const sortedChats = data.chats.sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          console.log('Sorted chats:', sortedChats);
-          setAllChats(sortedChats);
-        } else {
-          const errorData = await response.json();
-          console.error('Failed to fetch chats:', errorData);
-        }
-      } catch (error) {
-        console.error('Error fetching chats:', error);
-      }
-    };
-
-    if (user?.sub) {
-      fetchAllChats();
-    }
-  }, [user?.sub]);
-
   // Add function to delete chat
   const handleDeleteChat = async (chatIdToDelete: string) => {
     if (!user?.sub) return;
@@ -375,6 +387,47 @@ export default function ChatPage() {
     }
   };
 
+  // Add useEffect to fetch all chats only once on initial load
+  useEffect(() => {
+    const fetchAllChats = async () => {
+      if (!user?.sub) {
+        console.log('No user ID available');
+        return;
+      }
+      try {
+        console.log('Fetching chats for user:', user.sub);
+        const response = await fetch(`/api/chats?userId=${user.sub}`);
+        console.log('Chat fetch response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Received chats data:', data);
+          
+          if (!data.chats || !Array.isArray(data.chats)) {
+            console.error('Invalid chats data format:', data);
+            return;
+          }
+
+          // Sort chats by creation date, newest first
+          const sortedChats = data.chats.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          console.log('Sorted chats:', sortedChats);
+          setAllChats(sortedChats);
+        } else {
+          const errorData = await response.json();
+          console.error('Failed to fetch chats:', errorData);
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+
+    if (user?.sub && allChats.length === 0) {
+      fetchAllChats();
+    }
+  }, [user?.sub, allChats.length]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-900">
@@ -388,32 +441,19 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
-      {/* Chat Section */}
-      <div className={`flex flex-col h-full ${showDAG ? 'w-1/3' : 'w-full'}`}>
-        <Chat
-          chatId={chatId as string}
-          onChatIdChange={(id) => router.push(`/chat/${id}`)}
-          systemMessage="You are a helpful AI assistant."
-          welcomeMessage="Hi! I am VibeFlows AI. How can I help you today?"
-          chatType="workflow"
-        />
-      </div>
-
-      {/* DAG Visualization Section */}
-      {showDAG && currentWorkflow && (
-        <div className="w-2/3 border-l border-gray-700 bg-gray-800">
-          <div className="h-full overflow-hidden">
-            <WorkflowDAG 
-              steps={currentWorkflow.nodes} 
-              onClose={() => {
-                setShowDAG(false);
-                setCurrentWorkflow(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
+    <div className="pt-16 min-h-screen bg-gray-900">
+      <Chat
+        chatId={chatId as string}
+        onChatIdChange={(id) => router.push(`/chat/${id}`)}
+        systemMessage="You are a helpful AI assistant."
+        welcomeMessage="Hi! I am VibeFlows AI. How can I help you today?"
+        chatType="workflow"
+        allChats={allChats}
+        onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
+        showChatList={showChatList}
+        setShowChatList={setShowChatList}
+      />
     </div>
   );
 }
