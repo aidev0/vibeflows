@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@auth0/nextjs-auth0/client';
+
+// Create a global state for chats
+let globalChats: any[] = [];
 
 const ChatPage = () => {
   return (
@@ -16,7 +19,36 @@ const ChatPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading } = useUser();
+  const [error, setError] = useState<string | null>(null);
 
+  // Load chats only once
+  useEffect(() => {
+    if (!isLoading && user && globalChats.length === 0) {
+      const loadChats = async () => {
+        if (!user?.sub) return;
+
+        try {
+          const response = await fetch('/api/chats');
+          if (!response.ok) {
+            throw new Error('Failed to fetch chats');
+          }
+
+          const data = await response.json();
+          if (data.userChats) {
+            // Flatten all chats from all users and store in global state
+            globalChats = Object.values(data.userChats).flatMap((userData: any) => userData.chats);
+          }
+        } catch (error) {
+          console.error('Error loading chats:', error);
+          setError('Failed to load chats');
+        }
+      };
+
+      loadChats();
+    }
+  }, [user, isLoading]);
+
+  // Handle chat navigation
   useEffect(() => {
     if (!isLoading && user) {
       const initializeChat = async () => {
@@ -29,21 +61,14 @@ const ChatPageContent = () => {
 
           // If we have a chatId and it's not 'new', try to load it
           if (currentChatId && currentChatId !== 'new') {
-            try {
-              const response = await fetch(`/api/chat?chatId=${currentChatId}`);
-              if (response.ok) {
-                const data = await response.json();
-                if (data.messages && data.messages.length > 0) {
-                  router.push(`/chat/${currentChatId}`);
-                  return;
-                }
-              }
-            } catch (error) {
-              console.error('Error loading chat:', error);
+            const chat = globalChats.find(c => c.id === currentChatId);
+            if (chat) {
+              router.push(`/chat/${currentChatId}`);
+              return;
             }
           }
 
-          // Create a new chat
+          // If no valid chat found, create a new one
           const response = await fetch('/api/chat/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -81,16 +106,37 @@ const ChatPageContent = () => {
             body: JSON.stringify(welcomeMessage),
           });
 
+          // Add new chat to global state
+          const newChat = {
+            id: data.chatId,
+            title: 'New Chat',
+            type: 'chat',
+            created_at: new Date().toISOString(),
+            lastMessageAt: new Date().toISOString()
+          };
+          globalChats = [newChat, ...globalChats];
+
           // Redirect to the new chat
           router.push(`/chat/${data.chatId}`);
         } catch (error) {
           console.error('Error initializing chat:', error);
+          setError('Failed to initialize chat');
         }
       };
 
       initializeChat();
     }
   }, [user, isLoading, router, searchParams]);
+
+  // Function to remove chat from global state
+  const removeChat = (chatId: string) => {
+    globalChats = globalChats.filter(chat => chat.id !== chatId);
+  };
+
+  // Function to add chat to global state
+  const addChat = (chat: any) => {
+    globalChats = [chat, ...globalChats];
+  };
 
   if (isLoading) {
     return (
@@ -102,6 +148,16 @@ const ChatPageContent = () => {
 
   if (!user) {
     return null;
+  }
+
+  if (error) {
+    return (
+      <div className="pt-16 min-h-screen bg-gray-900">
+        <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+          <div className="text-red-500 text-xl">{error}</div>
+        </div>
+      </div>
+    );
   }
 
   return (
