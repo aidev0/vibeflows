@@ -131,7 +131,7 @@ export default function Home() {
             Ready to Transform Your Workflows?
           </h2>
           <p className="text-lg md:text-xl mb-6 md:mb-8 max-w-2xl mx-auto">
-            Get the power of the most advanced AI without writing a single line of code or complex configurations. You just vibe and let us do the work.
+            Get the power of the most advanced Marketing AI tools without writing a single line of code or complex configurations. You just vibe and let us do the work.
           </p>
           <button
             onClick={handleStartChat}
@@ -147,7 +147,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-gray-700 text-sm md:text-base">
-              © 2025 VibeFlows. Your army of AI agents.
+              © 2025 VibeFlows. Your army of Marketing AI agents.
             </div>
             <div className="flex gap-4 md:gap-6">
               <Link href="/privacy" className="text-gray-700 hover:text-blue-600 transition-colors text-sm md:text-base">Privacy</Link>
