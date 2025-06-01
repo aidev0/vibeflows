@@ -69,8 +69,8 @@ export default function Home() {
           Enterprise-Grade Automation AI.
         </div>
         <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-gray-900 mb-4 md:mb-6 leading-tight">
-          Work Automation
-          <span className="block md:inline bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> AI made for Non-Technicals.</span> 
+          Workflow Automation
+          <span className="block md:inline bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> AI made for Marketing.</span> 
         </h1>
         <p className="text-lg md:text-xl lg:text-2xl text-gray-800 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
           Finally, a work automation platform that gives you enterprise-grade power without the complexity. Just tell our AI what you want to automate, and it handles the rest.
