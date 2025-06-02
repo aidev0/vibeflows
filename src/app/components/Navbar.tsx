@@ -72,6 +72,11 @@ export default function Navbar() {
                                 e.preventDefault();
                                 setIsMenuOpen(false);
                                 
+                                if (!user) {
+                                  window.location.href = '/api/auth/login';
+                                  return;
+                                }
+                                
                                 try {
                                   // Fetch existing chats
                                   const chatsResponse = await fetch('/api/chats');

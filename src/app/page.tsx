@@ -12,6 +12,11 @@ export default function Home() {
   const [isLoadingChat, setIsLoadingChat] = useState(false);
 
   const handleStartChat = async () => {
+    if (!user) {
+      router.push('/api/auth/login');
+      return;
+    }
+
     setIsLoadingChat(true);
     try {
       const chatsResponse = await fetch('/api/chats');
