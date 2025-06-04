@@ -1,10 +1,40 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@auth0/nextjs-auth0/client';
 import { Message } from '@/models/Chat';
 import { Send, Bot, User, Layout, Menu, Trash2 } from 'lucide-react';
 import WorkflowDAG from './WorkflowDAG';
+import mermaid from 'mermaid';
+import ReactFlow, { 
+  ReactFlowProvider, 
+  Controls, 
+  Background, 
+  ReactFlowInstance,
+  Node,
+  Edge,
+  Position
+} from 'reactflow';
+import 'reactflow/dist/style.css';
+
+// Initialize mermaid with proper configuration
+if (typeof window !== 'undefined') {
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    securityLevel: 'loose',
+    themeVariables: {
+      darkMode: true,
+      background: '#1f2937',
+      primaryColor: '#4f46e5',
+      primaryTextColor: '#ffffff',
+      primaryBorderColor: '#4f46e5',
+      lineColor: '#4f46e5',
+      secondaryColor: '#4f46e5',
+      tertiaryColor: '#4f46e5',
+    }
+  });
+}
 
 interface ChatProps {
   chatId: string | null;
@@ -79,6 +109,104 @@ function JsonTable({ data }: JsonTableProps) {
   );
 }
 
+// MermaidDiagram component
+function MermaidDiagram({ diagramText }: { diagramText: string }) {
+  const [svg, setSvg] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const renderDiagram = async () => {
+      try {
+        setError(null);
+        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Clean up the diagram text
+        const cleanText = diagramText.trim().replace(/\r\n/g, '\n');
+        console.log('Rendering diagram:', cleanText);
+        
+        const { svg } = await mermaid.render(id, cleanText);
+        setSvg(svg);
+      } catch (error) {
+        console.error('Error rendering mermaid diagram:', error);
+        setError(error instanceof Error ? error.message : 'Failed to render diagram');
+      }
+    };
+
+    renderDiagram();
+  }, [diagramText]);
+
+  if (error) {
+    return <div className="text-red-500 p-2">{error}</div>;
+  }
+
+  return (
+    <div 
+      className="w-full min-h-[400px] flex items-center justify-center"
+      dangerouslySetInnerHTML={{ __html: svg }} 
+    />
+  );
+}
+
+// WorkflowFlow component for visualizing workflows
+const WorkflowFlow = ({ nodeList }: { nodeList: any[] }) => {
+  const [nodes, setNodes] = useState<Node[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+
+  useEffect(() => {
+    if (nodeList && nodeList.length > 0) {
+      // Transform nodes for React Flow
+      const transformedNodes: Node[] = nodeList.map((node, index) => ({
+        id: node.id || `node-${index}`,
+        type: 'default',
+        position: { x: index * 250, y: 0 },
+        data: { 
+          label: node.label || 'Unnamed Node',
+          description: node.description || ''
+        },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left
+      }));
+
+      // Create edges between nodes
+      const edges: Edge[] = nodeList.slice(1).map((_, index) => ({
+        id: `edge-${index}`,
+        source: transformedNodes[index].id,
+        target: transformedNodes[index + 1].id,
+        type: 'smoothstep',
+        animated: true
+      }));
+
+      setNodes(transformedNodes);
+      setEdges(edges);
+
+      // Fit view after nodes are set
+      setTimeout(() => {
+        if (reactFlowInstance) {
+          reactFlowInstance.fitView({ padding: 0.2 });
+        }
+      }, 100);
+    }
+  }, [nodeList, reactFlowInstance]);
+
+  return (
+    <div className="w-full h-[400px] bg-gray-900 rounded-lg overflow-hidden">
+      <ReactFlowProvider>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onInit={setReactFlowInstance}
+          fitView
+          className="bg-gray-900"
+        >
+          <Background />
+          <Controls />
+        </ReactFlow>
+      </ReactFlowProvider>
+    </div>
+  );
+};
+
 export default function Chat({ 
   chatId, 
   onChatIdChange, 
@@ -97,6 +225,7 @@ export default function Chat({
   const [currentWorkflow, setCurrentWorkflow] = useState<any>(null);
   const [showDAG, setShowDAG] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  const [mermaidError, setMermaidError] = useState<string | null>(null);
 
   // Add effect to load messages when chatId is available
   useEffect(() => {
@@ -118,6 +247,57 @@ export default function Chat({
       loadMessages();
     }
   }, [user, isLoading, chatId]);
+
+  // Add effect to render mermaid diagrams
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const renderMermaidDiagrams = async () => {
+      try {
+        setMermaidError(null);
+        // Reset mermaid to clear any previous renders
+        mermaid.contentLoaded();
+        
+        // Find all mermaid diagrams and render them
+        const mermaidElements = document.querySelectorAll('.mermaid');
+        mermaidElements.forEach(async (element) => {
+          try {
+            const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+            element.setAttribute('data-processed', 'false');
+            element.id = id;
+            
+            // Clean up the diagram text
+            let diagramText = element.textContent || '';
+            // Remove any leading/trailing whitespace and normalize line endings
+            diagramText = diagramText.trim().replace(/\r\n/g, '\n');
+            
+            // Debug log
+            console.log('Diagram text:', diagramText);
+            
+            // Ensure the diagram type is properly specified
+            if (!diagramText.startsWith('flowchart') && 
+                !diagramText.startsWith('graph') && 
+                !diagramText.startsWith('sequenceDiagram')) {
+              throw new Error('Invalid diagram type. Must start with flowchart, graph, or sequenceDiagram');
+            }
+            
+            const { svg } = await mermaid.render(id, diagramText);
+            element.innerHTML = svg;
+          } catch (error) {
+            console.error('Error rendering mermaid diagram:', error);
+            setMermaidError(error instanceof Error ? error.message : 'Failed to render diagram');
+            element.innerHTML = `<div class="text-red-500 p-2">Failed to render diagram: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
+          }
+        });
+      } catch (error) {
+        console.error('Error in mermaid rendering:', error);
+        setMermaidError(error instanceof Error ? error.message : 'Failed to initialize mermaid');
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    setTimeout(renderMermaidDiagrams, 100);
+  }, [messages]);
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -338,7 +518,7 @@ export default function Chat({
                     msg.sender === 'user'
                       ? 'bg-indigo-600 text-white rounded-br-none'
                       : 'bg-gray-700 text-gray-200 rounded-bl-none'
-                  } max-w-[33vw]`}
+                  } ${msg.type === 'mermaid' || msg.type === 'workflow_plan' ? 'w-full max-w-full' : 'max-w-[33vw]'}`}
                 >
                   {/* Message sender icon */}
                   <div className="flex items-center gap-2 mb-2">
@@ -352,10 +532,17 @@ export default function Chat({
                     </span>
                   </div>
 
-                  {/* 1. Always show text */}
+                  {/* 1. Always show text content first */}
                   <p className="text-sm md:text-base whitespace-pre-wrap break-words mb-4">{msg.text}</p>
 
-                  {/* 2. Show table if JSON exists */}
+                  {/* 2. Show Mermaid diagram if type is mermaid */}
+                  {msg.type === 'mermaid' && (msg as any).mermaid && (
+                    <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
+                      <MermaidDiagram diagramText={(msg as any).mermaid} />
+                    </div>
+                  )}
+
+                  {/* 3. Show table if JSON exists */}
                   {msg.json && (
                     <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
                       <div className="text-sm text-gray-400 mb-2">JSON Data:</div>
@@ -390,96 +577,11 @@ export default function Chat({
                     </div>
                   )}
 
-                  {/* 3. Show workflow if type is workflow_plan */}
+                  {/* 4. Show workflow if type is workflow_plan */}
                   {msg.type === 'workflow_plan' && msg.nodeList && msg.nodeList.length > 0 && (
                     <div className="w-full bg-gray-800 rounded-lg p-4">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="text-sm text-gray-400">Workflow Plan:</div>
-                        <button
-                          onClick={() => {
-                            console.log('View Workflow button clicked');
-                            if (!msg.nodeList) {
-                              console.warn('No nodeList found in message:', msg);
-                              return;
-                            }
-                            
-                            // Transform nodeList into the format expected by WorkflowDAG
-                            const nodes = msg.nodeList.map((node: any, index: number) => {
-                              if (!node) {
-                                console.warn('Undefined node at index:', index);
-                                return null;
-                              }
-                              return {
-                                id: `node-${index}-${Date.now()}`,
-                                type: 'stylishDagreNode',
-                                data: {
-                                  label: node.label || `Step ${index + 1}`,
-                                  description: node.description || '',
-                                  integrations: node.integrations || []
-                                },
-                                position: { x: 0, y: 0 },
-                                sourcePosition: 'right',
-                                targetPosition: 'left'
-                              };
-                            }).filter(Boolean); // Remove any null nodes
-                            
-                            console.log('Created nodes:', nodes);
-                            
-                            if (nodes.length === 0) {
-                              console.warn('No valid nodes found in nodeList');
-                              return;
-                            }
-                            
-                            // Set the current workflow and show DAG
-                            const workflow = {
-                              id: msg.id,
-                              user_id: user?.sub || '',
-                              nodes,
-                              created_at: new Date(),
-                              message_id: msg.id,
-                              chat_id: chatId || '',
-                              maximized: true
-                            };
-                            
-                            console.log('Setting workflow:', workflow);
-                            setCurrentWorkflow(workflow);
-                            setShowDAG(true);
-
-                            // Force maximize with a longer timeout to ensure state updates
-                            setTimeout(() => {
-                              console.log('Dispatching maximize event');
-                              const event = new CustomEvent('workflowMaximize', { 
-                                detail: { 
-                                  maximized: true,
-                                  workflow: workflow
-                                } 
-                              });
-                              window.dispatchEvent(event);
-                            }, 300);
-                          }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                        >
-                          <Layout size={16} />
-                          View Workflow
-                        </button>
-                      </div>
-                      <div className="space-y-4">
-                        {msg.nodeList.map((node: any, index: number) => (
-                          <div key={index} className="bg-gray-700 rounded-lg p-3">
-                            <div className="font-medium text-white">{node.label}</div>
-                            <div className="text-sm text-gray-300 mt-1">{node.description}</div>
-                            {node.integrations && node.integrations.length > 0 && (
-                              <div className="flex gap-2 mt-2">
-                                {node.integrations.map((integration: string) => (
-                                  <span key={integration} className="px-2 py-2 bg-gray-600 rounded text-xs text-gray-300">
-                                    {integration}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <div className="text-sm text-gray-400 mb-4">Workflow Visualization:</div>
+                      <WorkflowFlow nodeList={msg.nodeList} />
                     </div>
                   )}
 
