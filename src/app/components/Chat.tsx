@@ -563,21 +563,45 @@ export default function Chat({
         }),
       });
 
-      const vibeData = await vibeResponse.json();
-
       if (!vibeResponse.ok) {
-        throw new Error(vibeData.error || 'Failed to process message with VibeFlows API');
+        throw new Error('Failed to process message with VibeFlows API');
       }
 
-      // Reload all messages to show complete conversation history
-      // This includes the user's message, AI response, and any other messages in the chat
-      const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
-      if (messagesResponse.ok) {
-        const messagesData = await messagesResponse.json();
-        setMessages(messagesData.messages || []);
-      } else {
-        console.error('Failed to reload messages');
-        throw new Error('Failed to reload messages');
+      // Handle streaming response
+      const reader = vibeResponse.body?.getReader();
+      if (!reader) {
+        throw new Error('No response stream available');
+      }
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log('Stream complete');
+            break;
+          }
+
+          // Convert the chunk to text
+          const chunk = new TextDecoder().decode(value);
+          const messages = chunk.split('\n')
+            .filter(Boolean)
+            .map(msg => {
+              try {
+                return JSON.parse(msg);
+              } catch (e) {
+                console.error('Failed to parse message:', msg);
+                return null;
+              }
+            })
+            .filter(Boolean);
+
+          // Update messages as they stream in
+          if (messages.length > 0) {
+            setMessages(prev => [...prev, ...messages]);
+          }
+        }
+      } finally {
+        reader.releaseLock();
       }
     } catch (error) {
       console.error('Error sending message:', error);
