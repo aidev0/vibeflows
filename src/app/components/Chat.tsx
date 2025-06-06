@@ -550,58 +550,59 @@ export default function Chat({
       }
 
       // Then send to AI
-      const vibeResponse = await fetch(process.env.VIBEFLOWS_AI_API!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: text,
-          chatId,
-          userId: user.sub,
-          chatType
-        }),
-      });
-
-      if (!vibeResponse.ok) {
-        throw new Error('Failed to process message with VibeFlows API');
-      }
-
-      // Handle streaming response
-      const reader = vibeResponse.body?.getReader();
-      if (!reader) {
-        throw new Error('No response stream available');
-      }
-
       try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            console.log('Stream complete');
-            break;
-          }
+        console.log('Sending message to AI API:', {
+          text: userMessage.text,
+          chatId: chatId,
+        });
 
-          // Convert the chunk to text
-          const chunk = new TextDecoder().decode(value);
-          const messages = chunk.split('\n')
-            .filter(Boolean)
-            .map(msg => {
-              try {
-                return JSON.parse(msg);
-              } catch (e) {
-                console.error('Failed to parse message:', msg);
-                return null;
-              }
-            })
-            .filter(Boolean);
+        const vibeResponse = await fetch(process.env.NEXT_PUBLIC_VIBEFLOWS_AI_API!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            text: userMessage.text,
+            chatId: chatId,
+          }),
+        });
 
-          // Update messages as they stream in
-          if (messages.length > 0) {
-            setMessages(prev => [...prev, ...messages]);
-          }
+        if (!vibeResponse.ok) {
+          const errorData = await vibeResponse.json().catch(() => null);
+          console.error('API Error:', {
+            status: vibeResponse.status,
+            statusText: vibeResponse.statusText,
+            error: errorData,
+            headers: Object.fromEntries(vibeResponse.headers.entries())
+          });
+          throw new Error(errorData?.error || `API Error: ${vibeResponse.status} ${vibeResponse.statusText}`);
         }
-      } finally {
-        reader.releaseLock();
+
+        const vibeData = await vibeResponse.json();
+        console.log('API Response:', vibeData);
+
+        // Reload all messages to show complete conversation history
+        const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+        if (messagesResponse.ok) {
+          const messagesData = await messagesResponse.json();
+          setMessages(messagesData.messages || []);
+        } else {
+          console.error('Failed to reload messages');
+          throw new Error('Failed to reload messages');
+        }
+      } catch (error) {
+        console.error('Error in API call:', error);
+        // Show error to user with specific message
+        setMessages(prev => [...prev, {
+          id: `error-${Date.now()}`,
+          chatId: chatId as string,
+          text: error instanceof Error ? error.message : 'Sorry, there was an error processing your message. Please try again.',
+          sender: 'system',
+          timestamp: new Date(),
+          type: 'error'
+        }]);
+        throw error;
       }
     } catch (error) {
       console.error('Error sending message:', error);

@@ -8,6 +8,7 @@ const nextConfig = {
   },
   env: {
     ADMIN_ID: process.env.ADMIN_ID,
+    VIBEFLOWS_AI_API: process.env.VIBEFLOWS_AI_API,
   },
   async headers() {
     const allowedOrigins = [
