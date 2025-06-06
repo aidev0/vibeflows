@@ -569,39 +569,14 @@ export default function Chat({
         throw new Error(vibeData.error || 'Failed to process message with VibeFlows API');
       }
 
-      // Save AI response to database and update UI optimistically
-      if (vibeData.message) {
-        const aiMessage: Message = {
-          id: `ai-${Date.now()}`,
-          chatId: chatId as string,
-          text: vibeData.message.text,
-          sender: 'ai',
-          timestamp: new Date(),
-          type: vibeData.message.type || 'simple_text',
-          json: vibeData.message.json,
-          nodeList: vibeData.message.nodeList
-        };
-
-        // Optimistically add AI message
-        setMessages(prev => [...prev, aiMessage]);
-
-        const aiSaveResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            chatId,
-            message: aiMessage,
-            chatType
-          }),
-        });
-
-        if (!aiSaveResponse.ok) {
-          console.error('Failed to save AI response');
-          // Remove the optimistic AI message if save failed
-          setMessages(prev => prev.filter(msg => msg.id !== aiMessage.id));
-        }
+      // Reload all messages to show complete conversation history
+      // This includes the user's message, AI response, and any other messages in the chat
+      const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        setMessages(messagesData.messages || []);
+      } else {
+        console.error('Failed to reload messages');
       }
     } catch (error) {
       console.error('Error sending message:', error);
