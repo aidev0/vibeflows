@@ -550,7 +550,7 @@ export default function Chat({
       }
 
       // Then send to AI
-      const vibeResponse = await fetch('/api/chat/ai', {
+      const vibeResponse = await fetch(process.env.VIBEFLOWS_AI_API!, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -577,6 +577,7 @@ export default function Chat({
         setMessages(messagesData.messages || []);
       } else {
         console.error('Failed to reload messages');
+        throw new Error('Failed to reload messages');
       }
     } catch (error) {
       console.error('Error sending message:', error);
