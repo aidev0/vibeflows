@@ -20,9 +20,9 @@ export interface Message {
   id: string;
   chatId: string;
   text: string;
-  sender: 'user' | 'ai';
+  sender: 'user' | 'ai' | 'system';
   timestamp: Date;
-  type: 'simple_text' | 'json' | 'workflow_plan' | 'mermaid';
+  type: 'simple_text' | 'json' | 'workflow_plan' | 'mermaid' | 'error';
   json?: any;
   nodeList?: {
     label: string;
