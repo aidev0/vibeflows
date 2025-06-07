@@ -552,8 +552,8 @@ export default function Chat({
       // Then send to AI
       try {
         console.log('Sending message to AI API:', {
-          text: userMessage.text,
-          chatId: chatId,
+          text,
+          chatId
         });
 
         const vibeResponse = await fetch(process.env.NEXT_PUBLIC_VIBEFLOWS_AI_API!, {
@@ -563,8 +563,8 @@ export default function Chat({
             'Accept': 'application/json',
           },
           body: JSON.stringify({
-            text: userMessage.text,
-            chatId: chatId,
+            text,
+            chatId,
           }),
         });
 

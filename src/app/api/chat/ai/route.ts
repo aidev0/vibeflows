@@ -45,13 +45,8 @@ export async function POST(request: Request) {
 
     // Format the message document to match expected structure
     const formattedMessage = {
-      id: messageDoc.id,
       chatId: messageDoc.chatId,
       text: messageDoc.text,
-      sender: messageDoc.sender,
-      timestamp: { $date: messageDoc.timestamp.toISOString() },
-      type: messageDoc.type,
-      json: messageDoc.json
     };
 
     console.log('4. Calling AI API:', process.env.VIBEFLOWS_AI_API);
