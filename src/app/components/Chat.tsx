@@ -291,7 +291,8 @@ function MarkdownMessage({ content }: { content: string }) {
 }
 
 function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolean }) {
-  const isJsonType = message.type?.toLowerCase().includes('json');
+  // const isJsonType = message.type?.toLowerCase().includes('json');
+  const isJsonType = message.type === 'json';
   const isFullWidth = isJsonType || message.type === 'mermaid' || message.type === 'workflow_plan' || isMobile;
 
   return (
