@@ -387,7 +387,8 @@ function ChatHistory({
   handleDeleteChat, 
   deletingChatId,
   showChatList,
-  isMobile 
+  isMobile,
+  user
 }: { 
   allChats: { id: string; title: string; created_at: string; messageCount: number }[];
   onChatIdChange: (id: string) => void;
@@ -395,7 +396,10 @@ function ChatHistory({
   deletingChatId: string | null;
   showChatList: boolean;
   isMobile: boolean;
+  user: any;
 }) {
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
+
   return (
     <div className={`fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-gray-800 transform transition-transform duration-300 ease-in-out ${showChatList ? 'translate-x-0' : '-translate-x-full'} ${isMobile ? 'z-50' : ''}`}>
       <div className="h-full flex flex-col">
@@ -405,7 +409,10 @@ function ChatHistory({
         <div className="flex-1 overflow-y-auto p-4">
           <button
             onClick={async () => {
+              if (isCreatingChat) return;
+              setIsCreatingChat(true);
               try {
+                // Create new chat
                 const response = await fetch('/api/chat/create', {
                   method: 'POST',
                   headers: {
@@ -423,18 +430,46 @@ function ChatHistory({
 
                 const data = await response.json();
                 if (data?.chatId) {
+                  // Send greeting message
+                  const greetingResponse = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      chatId: data.chatId,
+                      message: {
+                        id: `ai-${Date.now()}`,
+                        chatId: data.chatId,
+                        text: `Hi ${user?.name || 'there'}, how can I help you?`,
+                        sender: 'ai',
+                        timestamp: new Date(),
+                        type: 'simple_text'
+                      },
+                      chatType: 'workflow'
+                    }),
+                  });
+
+                  if (!greetingResponse.ok) {
+                    throw new Error('Failed to send greeting message');
+                  }
+
+                  // Only change to new chat after greeting is sent
                   onChatIdChange(data.chatId);
                 }
               } catch (error) {
                 console.error('Error creating chat:', error);
+              } finally {
+                setIsCreatingChat(false);
               }
             }}
-            className="w-full mb-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"
+            disabled={isCreatingChat}
+            className={`w-full mb-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 ${isCreatingChat ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            New Chat
+            {isCreatingChat ? 'Creating...' : 'New Chat'}
           </button>
           <div className="space-y-2">
             {allChats
@@ -666,6 +701,7 @@ export default function Chat({
         deletingChatId={deletingChatId}
         showChatList={showChatList}
         isMobile={isMobile}
+        user={user}
       />
 
       <div className={`flex flex-col h-full relative transition-all duration-300 ease-in-out ${showChatList ? 'ml-64' : 'ml-0'} ${showDAG ? 'w-1/3' : 'w-full'}`}>
