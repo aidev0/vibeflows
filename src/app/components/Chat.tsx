@@ -554,7 +554,15 @@ export default function Chat({
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [mermaidError, setMermaidError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userId, setUserId] = useState<string>('');
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // Set userId when user is loaded
+  useEffect(() => {
+    if (user?.sub) {
+      setUserId(user.sub);
+    }
+  }, [user]);
 
   // Load messages only on initial mount or chat change
   useEffect(() => {
@@ -582,7 +590,10 @@ export default function Chat({
   };
 
   const handleSendMessage = async (text: string) => {
-    if (!text.trim() || !chatId || !user?.sub) return;
+    if (!text.trim() || !chatId || !userId) {
+      console.error('Missing required data:', { text: text.trim(), chatId, userId });
+      return;
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -621,7 +632,7 @@ export default function Chat({
         console.log('Sending message to AI API:', {
           text,
           chatId,
-          user_id: user.sub
+          user_id: userId
         });
 
         const vibeResponse = await fetch(process.env.NEXT_PUBLIC_VIBEFLOWS_AI_API!, {
@@ -633,7 +644,7 @@ export default function Chat({
           body: JSON.stringify({
             text,
             chatId,
-            user_id: user.sub
+            user_id: userId
           }),
         });
 
