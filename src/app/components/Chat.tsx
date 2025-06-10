@@ -258,6 +258,9 @@ function MessageTimestamp({ timestamp }: { timestamp: Date | string }) {
 }
 
 function MarkdownMessage({ content }: { content: string }) {
+  // Ensure content is a string
+  const markdownContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+  
   return (
     <div className="prose prose-invert max-w-none">
       <ReactMarkdown
@@ -284,16 +287,22 @@ function MarkdownMessage({ content }: { content: string }) {
           td: ({ node, ...props }) => <td className="px-4 py-2 text-sm text-gray-300" {...props} />,
         }}
       >
-        {content}
+        {markdownContent}
       </ReactMarkdown>
     </div>
   );
 }
 
 function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolean }) {
-  // const isJsonType = message.type?.toLowerCase().includes('json');
-  const isJsonType = message.type === 'json';
-  const isFullWidth = isJsonType || message.type === 'mermaid' || message.type === 'workflow_plan' || isMobile;
+  const isFullWidth = message.type === 'mermaid' || message.type === 'workflow_plan' || isMobile;
+
+  const handleCopyJson = async (json: any) => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
 
   return (
     <div
@@ -310,10 +319,12 @@ function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolea
       >
         <MessageSender sender={message.sender} />
         
-        {/* Render text content as markdown */}
-        <div className="mb-4">
-          <MarkdownMessage content={message.text} />
-        </div>
+        {/* Only show markdown content if not n8n_workflow_json type */}
+        {message.type !== 'n8n_workflow_json' && (
+          <div className="mb-4">
+            <MarkdownMessage content={message.text} />
+          </div>
+        )}
 
         {message.type === 'mermaid' && (message as any).mermaid && (
           <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
@@ -321,8 +332,28 @@ function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolea
           </div>
         )}
 
-        {isJsonType && message.json && (
-          <JsonTable data={message.json} />
+        {message.type === 'json' && message.json && (
+          <JsonTable key={`json-table-${message.id}`} data={message.json} />
+        )}
+
+        {message.type === 'n8n_workflow_json' && message.json && (
+          <div key={`raw-json-${message.id}`} className="w-full bg-gray-800 rounded-lg p-4 mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <div className="text-sm text-gray-400">Raw JSON:</div>
+              <button
+                onClick={() => handleCopyJson(message.json)}
+                className="p-2 text-gray-400 hover:text-white transition-colors"
+                title="Copy JSON"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                </svg>
+              </button>
+            </div>
+            <pre className="bg-gray-900 p-4 rounded-lg overflow-x-auto text-sm">
+              {JSON.stringify(message.json, null, 2)}
+            </pre>
+          </div>
         )}
 
         {message.type === 'workflow_plan' && message.nodeList && message.nodeList.length > 0 && (
@@ -589,7 +620,8 @@ export default function Chat({
       try {
         console.log('Sending message to AI API:', {
           text,
-          chatId
+          chatId,
+          user_id: user.sub
         });
 
         const vibeResponse = await fetch(process.env.NEXT_PUBLIC_VIBEFLOWS_AI_API!, {
@@ -601,6 +633,7 @@ export default function Chat({
           body: JSON.stringify({
             text,
             chatId,
+            user_id: user.sub
           }),
         });
 

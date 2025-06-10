@@ -22,7 +22,7 @@ export interface Message {
   text: string;
   sender: 'user' | 'ai' | 'system';
   timestamp: Date;
-  type: 'simple_text' | 'json' | 'workflow_plan' | 'mermaid' | 'error';
+  type?: 'simple_text' | 'json' | 'workflow_plan' | 'mermaid' | 'error' | 'n8n_workflow_json';
   json?: any;
   nodeList?: {
     label: string;
