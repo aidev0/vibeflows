@@ -59,7 +59,7 @@ export default function ChatPage() {
               message: {
                 id: `ai-${Date.now()}`,
                 chatId: data.chatId,
-                text: `Hi ${user?.name || 'there'}, how can I help you?`,
+                text: `# 🚀 Welcome to VibeFlows, ${user?.given_name || 'there'}!\n\nI'm your **Marketing Automation AI** – ready to transform your marketing ideas into production-ready workflows without a single line of code.\n\n## What I Can Build For You:\n- **Email Marketing Campaigns** with smart segmentation and personalization\n- **Lead Nurturing Sequences** that convert prospects into customers  \n- **Social Media Automation** across all your channels\n- **Customer Journey Workflows** from first touch to retention\n- **Analytics Dashboards** that track what actually matters\n- **CRM Integrations** that sync your entire marketing stack\n\n## Just Tell Me What You Need:\n*\"Set up a welcome email series for new subscribers\"*  \n*\"Create a lead scoring system for our B2B prospects\"*  \n*\"Build a social media campaign for our product launch\"*  \n*\"Automate our customer onboarding process\"*\n\n**No technical jargon required** – describe your marketing challenge in plain English, and I'll architect the perfect solution using our 1000+ integrations and enterprise-grade AI agents.\n\nReady to automate something amazing? What marketing workflow should we build first? 💡"`,
                 sender: 'ai',
                 timestamp: new Date(),
                 type: 'simple_text'
@@ -145,7 +145,7 @@ export default function ChatPage() {
             message: {
               id: `ai-${Date.now()}`,
               chatId: data.chatId,
-              text: `Hi ${user?.name || 'there'}, how can I help you?`,
+              text: `# 🚀 Welcome to VibeFlows, ${user?.given_name || 'there'}!\n\nI'm your **Marketing Automation AI** – ready to transform your marketing ideas into production-ready workflows without a single line of code.\n\n## What I Can Build For You:\n- **Email Marketing Campaigns** with smart segmentation and personalization\n- **Lead Nurturing Sequences** that convert prospects into customers  \n- **Social Media Automation** across all your channels\n- **Customer Journey Workflows** from first touch to retention\n- **Analytics Dashboards** that track what actually matters\n- **CRM Integrations** that sync your entire marketing stack\n\n## Just Tell Me What You Need:\n*\"Set up a welcome email series for new subscribers\"*  \n*\"Create a lead scoring system for our B2B prospects\"*  \n*\"Build a social media campaign for our product launch\"*  \n*\"Automate our customer onboarding process\"*\n\n**No technical jargon required** – describe your marketing challenge in plain English, and I'll architect the perfect solution using our 1000+ integrations and enterprise-grade AI agents.\n\nReady to automate something amazing? What marketing workflow should we build first? 💡"`,
               sender: 'ai',
               timestamp: new Date(),
               type: 'simple_text'
@@ -220,7 +220,7 @@ export default function ChatPage() {
         chatId={chatId}
         onChatIdChange={setChatId}
         systemMessage="I am an AI assistant that helps you create and manage workflows. I can help you automate tasks, create integrations, and build complex workflows."
-        welcomeMessage="Welcome! I'm here to help you create and manage workflows. What would you like to automate today?"
+        welcomeMessage={`# 🚀 Welcome to VibeFlows, ${user?.given_name || 'there'}!\n\nI'm your **Marketing Automation AI** – ready to transform your marketing ideas into production-ready workflows without a single line of code.\n\n## What I Can Build For You:\n- **Email Marketing Campaigns** with smart segmentation and personalization\n- **Lead Nurturing Sequences** that convert prospects into customers  \n- **Social Media Automation** across all your channels\n- **Customer Journey Workflows** from first touch to retention\n- **Analytics Dashboards** that track what actually matters\n- **CRM Integrations** that sync your entire marketing stack\n\n## Just Tell Me What You Need:\n*\"Set up a welcome email series for new subscribers\"*  \n*\"Create a lead scoring system for our B2B prospects\"*  \n*\"Build a social media campaign for our product launch\"*  \n*\"Automate our customer onboarding process\"*\n\n**No technical jargon required** – describe your marketing challenge in plain English, and I'll architect the perfect solution using our 1000+ integrations and enterprise-grade AI agents.\n\nReady to automate something amazing? What marketing workflow should we build first? 💡`}
         chatType="workflow"
         allChats={allChats}
         onDeleteChat={handleDeleteChat}

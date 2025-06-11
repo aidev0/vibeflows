@@ -411,7 +411,7 @@ export default function ChatPage() {
         chatId={chatId as string}
         onChatIdChange={(id) => router.push(`/chat/${id}`)}
         systemMessage="You are a helpful AI assistant."
-        welcomeMessage="Hi! I am VibeFlows AI. How can I help you today?"
+        welcomeMessage={`# 🚀 Welcome to VibeFlows, ${user?.given_name || 'there'}!\n\nI'm your **Marketing Automation AI** – ready to transform your marketing ideas into production-ready workflows without a single line of code.\n\n## What I Can Build For You:\n- **Email Marketing Campaigns** with smart segmentation and personalization\n- **Lead Nurturing Sequences** that convert prospects into customers  \n- **Social Media Automation** across all your channels\n- **Customer Journey Workflows** from first touch to retention\n- **Analytics Dashboards** that track what actually matters\n- **CRM Integrations** that sync your entire marketing stack\n\n## Just Tell Me What You Need:\n*\"Set up a welcome email series for new subscribers\"*  \n*\"Create a lead scoring system for our B2B prospects\"*  \n*\"Build a social media campaign for our product launch\"*  \n*\"Automate our customer onboarding process\"*\n\n**No technical jargon required** – describe your marketing challenge in plain English, and I'll architect the perfect solution using our 1000+ integrations and enterprise-grade AI agents.\n\nReady to automate something amazing? What marketing workflow should we build first? 💡`}
         chatType="workflow"
         allChats={allChats}
         onDeleteChat={handleDeleteChat}
