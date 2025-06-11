@@ -236,7 +236,7 @@ function MessageSender({ sender }: { sender: string }) {
         <Bot className="w-4 h-4" />
       )}
       <span className="text-xs opacity-70">
-        {sender === 'user' ? 'You' : 'AI Assistant'}
+        {sender === 'user' ? 'You' : 'AI'}
       </span>
     </div>
   );
