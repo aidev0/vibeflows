@@ -17,6 +17,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import ReactMarkdown from 'react-markdown';
+import N8nIntegrationForm from './N8nIntegrationForm';
 
 // Initialize mermaid with proper configuration
 if (typeof window !== 'undefined') {
@@ -294,8 +295,6 @@ function MarkdownMessage({ content }: { content: string }) {
 }
 
 function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolean }) {
-  const isFullWidth = message.type === 'mermaid' || message.type === 'workflow_plan' || isMobile;
-
   const handleCopyJson = async (json: any) => {
     try {
       await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
@@ -315,28 +314,31 @@ function ChatMessage({ message, isMobile }: { message: Message; isMobile: boolea
           message.sender === 'user'
             ? 'bg-indigo-600 text-white rounded-br-none'
             : 'bg-gray-700 text-gray-200 rounded-bl-none'
-        } ${isFullWidth ? 'w-full max-w-full' : 'max-w-[33vw]'}`}
+        } w-full max-w-full`}
       >
         <MessageSender sender={message.sender} />
         
         {/* Only show markdown content if not n8n_workflow_json type */}
-        {message.type !== 'n8n_workflow_json' && (
+        {message.text && (
           <div className="mb-4">
             <MarkdownMessage content={message.text} />
           </div>
         )}
 
         {message.type === 'mermaid' && (message as any).mermaid && (
-          <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
-            <MermaidDiagram diagramText={(message as any).mermaid} />
-          </div>
+          <>
+            <div className="w-full overflow-x-auto bg-gray-800 rounded-lg p-2 mb-4">
+              <MermaidDiagram diagramText={(message as any).mermaid} />
+            </div>
+            <div className="w-full bg-gray-800 rounded-lg p-4 mb-4">
+              <div className="text-sm text-gray-400 mb-4">n8n Integration:</div>
+              <N8nIntegrationForm />
+            </div>
+          </>
         )}
 
-        {message.type === 'json' && message.json && (
-          <JsonTable key={`json-table-${message.id}`} data={message.json} />
-        )}
-
-        {message.type === 'n8n_workflow_json' && message.json && (
+        {/* Show raw JSON for any message with a json field */}
+        {message.json && (
           <div key={`raw-json-${message.id}`} className="w-full bg-gray-800 rounded-lg p-4 mb-4">
             <div className="flex justify-between items-center mb-2">
               <div className="text-sm text-gray-400">Raw JSON:</div>
@@ -582,6 +584,21 @@ export default function Chat({
     }
   }, [user, isLoading, chatId]);
 
+  // Reload messages every 30 seconds
+  useEffect(() => {
+    if (!isLoading && user && chatId) {
+      const interval = setInterval(() => {
+        fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.messages) setMessages(data.messages);
+          })
+          .catch(err => console.error('Error reloading messages:', err));
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user, isLoading, chatId]);
+
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -663,10 +680,10 @@ export default function Chat({
         console.log('API Response:', vibeData);
 
         // Reload all messages to show complete conversation history
-        const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
-        if (messagesResponse.ok) {
-          const messagesData = await messagesResponse.json();
-          setMessages(messagesData.messages || []);
+      const messagesResponse = await fetch(`/api/chat?chatId=${chatId}&userId=${user.sub}`);
+      if (messagesResponse.ok) {
+        const messagesData = await messagesResponse.json();
+        setMessages(messagesData.messages || []);
         } else {
           console.error('Failed to reload messages');
           throw new Error('Failed to reload messages');
@@ -769,8 +786,8 @@ export default function Chat({
             <div className="flex items-center space-x-2 text-gray-400">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-500"></div>
               <span>Processing your message...</span>
-            </div>
-          )}
+                    </div>
+                  )}
         </div>
 
         <ChatInput
