@@ -50,7 +50,10 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
     const nodes = data?.nodes || [];
     const edgesList = data?.edges || [];
     
-    if (nodes.length === 0) {
+    // Validate nodes - only include nodes with valid IDs
+    const validNodes = nodes.filter(node => node?.id || node?._id);
+    
+    if (validNodes.length === 0) {
       return { nodesWithPositions: [], edges: [] };
     }
     
@@ -65,23 +68,27 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
       marginy: 40,
     });
 
-    // Add nodes
-    nodes.forEach((node) => {
-      if (node?.id) {
-        graph.setNode(String(node.id), { 
+    // Add nodes with proper validation
+    validNodes.forEach((node) => {
+      const nodeId = String(node?.id || node?._id);
+      if (nodeId && nodeId !== 'undefined') {
+        graph.setNode(nodeId, { 
           width: nodeWidth, 
           height: nodeHeight,
-          label: String(node.name || node.id) 
+          label: String(node.name || nodeId) 
         });
       }
     });
 
-    // Add edges
+    // Add edges with validation
     edgesList.forEach((edge) => {
-      if (edge?.source && edge?.target && 
-          graph.hasNode(String(edge.source)) && 
-          graph.hasNode(String(edge.target))) {
-        graph.setEdge(String(edge.source), String(edge.target));
+      const sourceId = String(edge?.source || '');
+      const targetId = String(edge?.target || '');
+      
+      if (sourceId && targetId && 
+          sourceId !== 'undefined' && targetId !== 'undefined' &&
+          graph.hasNode(sourceId) && graph.hasNode(targetId)) {
+        graph.setEdge(sourceId, targetId);
       }
     });
 
@@ -89,18 +96,21 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
     dagre.layout(graph);
 
     // Position nodes
-    const positioned = nodes.map((node) => {
-      if (!node?.id) return null;
-      const graphNode = graph.node(String(node.id));
+    const positioned = validNodes.map((node) => {
+      const nodeId = String(node?.id || node?._id);
+      if (!nodeId || nodeId === 'undefined') return null;
+      
+      const graphNode = graph.node(nodeId);
       return {
         ...node,
+        id: nodeId, // Ensure consistent ID
         position: graphNode ? {
           x: graphNode.x - graphNode.width / 2,
           y: graphNode.y - graphNode.height / 2,
         } : { x: 0, y: 0 }
       };
     }).filter(Boolean);
-
+    
     return {
       nodesWithPositions: positioned,
       edges: edgesList,
@@ -172,8 +182,10 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
 
   if (!data || !nodesWithPositions.length) {
     return (
-      <div className={`w-full h-full bg-gray-900 relative overflow-hidden ${className}`}>
-        {emptyState || defaultEmptyState}
+      <div className={`w-full h-full bg-gray-900 relative ${className}`}>
+        <div className="absolute inset-0 flex items-center justify-center">
+          {emptyState || defaultEmptyState}
+        </div>
       </div>
     );
   }

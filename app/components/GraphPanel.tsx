@@ -29,46 +29,30 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ selectedItem, selectedNode, onN
 
   // Custom empty state
   const emptyState = (
-    <div className="absolute inset-0">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(circle at 30% 20%, rgba(120,119,198,0.3), transparent 70%)'
-        }} />
-        <div className="absolute inset-0" style={{
-          background: 'radial-gradient(circle at 70% 80%, rgba(168,85,247,0.4), transparent 70%)'
-        }} />
-      </div>
-      
-      <div className="relative z-10 h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative mb-8">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl" />
-            <div className="relative p-8 bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-white/10 max-w-md mx-auto">
-              <div className="relative mb-6">
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-lg opacity-75" />
-                <Network size={64} className="relative mx-auto text-blue-400" />
-              </div>
-              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                Select a Flow or Agent
-              </h3>
-              <p className="text-gray-300 leading-relaxed mb-6">
-                Choose from the side panels to visualize your workflow graph and see how components connect together.
-              </p>
-              <div className="flex justify-center gap-6">
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"></div>
-                  <span>Agents</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-                  <span>Flows</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500"></div>
-                  <span>Functions</span>
-                </div>
-              </div>
-            </div>
+    <div className="text-center">
+      <div className="relative p-8 bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-white/10 max-w-md mx-auto">
+        <div className="relative mb-6">
+          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-lg opacity-75" />
+          <Network size={64} className="relative mx-auto text-blue-400" />
+        </div>
+        <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          Select a Flow or Agent
+        </h3>
+        <p className="text-gray-300 leading-relaxed mb-6">
+          Choose from the side panels to visualize your workflow graph
+        </p>
+        <div className="flex justify-center gap-4">
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+            <span>Agents</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <span>Flows</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+            <span>Functions</span>
           </div>
         </div>
       </div>
@@ -231,17 +215,54 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ selectedItem, selectedNode, onN
   };
 
   return (
-    <div className="h-full">
-      <Graph
-        data={graphData}
-        selectedNode={selectedNode}
-        onNodeClick={onNodeSelect}
-        renderNode={renderNode}
-        renderEdge={renderEdge}
-        nodeWidth={280}
-        nodeHeight={120}
-        emptyState={emptyState}
-      />
+    <div className="h-full w-full relative">
+      {/* Always show centered empty state if no valid data */}
+      {(!selectedItem || !graphData.nodes.length) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900 z-10">
+          <div className="text-center">
+            <div className="relative p-8 bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-white/10 max-w-md mx-auto">
+              <div className="relative mb-6">
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-lg opacity-75" />
+                <Network size={64} className="relative mx-auto text-blue-400" />
+              </div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                Select a Flow or Agent
+              </h3>
+              <p className="text-gray-300 leading-relaxed mb-6">
+                Choose from the side panels to visualize your workflow graph
+              </p>
+              <div className="flex justify-center gap-4">
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                  <span>Agents</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  <span>Flows</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <span>Functions</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Graph component - only render if there's valid data */}
+      {selectedItem && graphData.nodes.length > 0 && (
+        <Graph
+          data={graphData}
+          selectedNode={selectedNode}
+          onNodeClick={onNodeSelect}
+          renderNode={renderNode}
+          renderEdge={renderEdge}
+          nodeWidth={280}
+          nodeHeight={120}
+          className="h-full w-full"
+        />
+      )}
     </div>
   );
 };

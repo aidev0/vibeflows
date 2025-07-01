@@ -529,11 +529,13 @@ const Dashboard = () => {
             </button>
           </div>
 
-          <GraphPanel
-            selectedItem={selectedItem}
-            selectedNode={selectedNode}
-            onNodeSelect={(node) => setSelectedNode(node)}
-          />
+          <div className="flex-1 w-full">
+            <GraphPanel
+              selectedItem={selectedItem}
+              selectedNode={selectedNode}
+              onNodeSelect={(node) => setSelectedNode(node)}
+            />
+          </div>
         </div>
 
         {/* Right Sidebar - Chat */}
