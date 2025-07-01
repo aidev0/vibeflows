@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, GitBranch } from 'lucide-react';
-import Graph from '../components/graph';
+import GraphPanel from '../components/GraphPanel';
 
 // API functions
 const API = {
@@ -529,17 +529,10 @@ const Dashboard = () => {
             </button>
           </div>
 
-          <Graph
-            data={{
-              nodes: selectedItem?.nodes || selectedItem?.functions || [],
-              edges: selectedItem?.edges || [],
-              name: selectedItem?.name || '',
-              description: selectedItem?.description || ''
-            }}
+          <GraphPanel
+            selectedItem={selectedItem}
             selectedNode={selectedNode}
-            onNodeClick={(node) => setSelectedNode(node)}
-            className="h-full w-full"
-            ref={graphRef}
+            onNodeSelect={(node) => setSelectedNode(node)}
           />
         </div>
 
