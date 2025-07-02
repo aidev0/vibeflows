@@ -4,40 +4,33 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "DISABLE_ESLINT_PLUGIN=true next build",
-    "start": "next start -p $PORT",
-    "lint": "next lint",
-    "heroku:set-env": "node scripts/set-heroku-env.js"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@auth0/nextjs-auth0": "^3.7.0",
-    "@types/dagre": "^0.7.52",
-    "@types/graphlib": "^2.1.12",
+    "@auth0/nextjs-auth0": "^3.8.0",
+    "@monaco-editor/react": "^4.7.0",
+    "@types/dagre": "^0.7.53",
+    "@types/mongodb": "^4.0.6",
+    "autoprefixer": "^10.4.16",
     "dagre": "^0.8.5",
-    "googleapis": "^148.0.0",
-    "graphlib": "^2.1.8",
-    "lucide-react": "^0.508.0",
-    "mermaid": "^11.6.0",
-    "mongodb": "^6.16.0",
-    "next": "15.3.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-hot-toast": "^2.5.2",
+    "lucide-react": "^0.294.0",
+    "mongodb": "^6.17.0",
+    "next": "^14.2.25",
+    "postcss": "^8.4.32",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
-    "reactflow": "^11.11.4"
+    "remark-gfm": "^4.0.1",
+    "tailwindcss": "^3.3.6"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.3.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "typescript": "^5.3.3"
   }
 }
