@@ -42,7 +42,7 @@ export default function Home() {
                 Create powerful marketing automation workflows with AI-powered agents and smart decision flows.
               </p>
               <a
-                href="/auth/login"
+                href="/api/auth/login"
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center justify-center gap-2"
               >
                 <LogIn size={20} />

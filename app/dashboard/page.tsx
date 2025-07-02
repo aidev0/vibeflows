@@ -5,7 +5,7 @@ import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Mi
 import GraphPanel from '../components/GraphPanel';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useUser } from '@auth0/nextjs-auth0';
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 // API functions
 const API = {
@@ -263,7 +263,7 @@ const Dashboard = () => {
                           
                         case 'iteration':
                           // Show iterations as progress
-                          messageToAdd = `\n\n**${data.message}**\n`;
+                          messageToAdd = `\n**${data.message}**\n`;
                           break;
                           
                         case 'thinking':
@@ -287,7 +287,7 @@ const Dashboard = () => {
                           
                         case 'final':
                           // Show completion
-                          messageToAdd = `\n\n**${data.message}**`;
+                          messageToAdd = `\n**${data.message}**`;
                           break;
                           
                         case 'reasoning_done':
@@ -303,7 +303,7 @@ const Dashboard = () => {
                           
                         default:
                           // Show other message types as-is
-                          messageToAdd = data.message;
+                          messageToAdd = `\n*${data.message}`;
                       }
                       
                       if (messageToAdd) {
@@ -481,7 +481,7 @@ const Dashboard = () => {
           </span>
           {user && (
             <a
-              href="/auth/logout"
+              href="/api/auth/logout"
               className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
             >
               <LogOut size={16} />
@@ -490,7 +490,7 @@ const Dashboard = () => {
           )}
           {!user && !isLoading && (
             <a
-              href="/auth/login"
+              href="/api/auth/login"
               className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
             >
               <LogIn size={16} />
