@@ -43,8 +43,10 @@ export async function POST(request: Request) {
     // Forward request to local AI API on port 8000
     console.log('🔄 Attempting to connect to AI service on localhost:8000...');
     console.log('📤 Sending payload to AI service:', { user_query, chat_id, user_id });
-    
-    const aiResponse = await fetch('http://localhost:8000/api/ai/stream', {
+    const VIBEFLOWS_AI_API_URL = process.env.AI_API_URL;
+    const AI_API_URL = `${VIBEFLOWS_AI_API_URL}/api/ai/stream`
+    console.log('🔄 Attempting to connect to AI service on', AI_API_URL);
+    const aiResponse = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
