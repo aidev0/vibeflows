@@ -92,12 +92,34 @@ export async function POST(request: Request) {
         }
 
         try {
+          let buffer = '';
+          
           while (true) {
             const { done, value } = await reader.read();
             
             if (done) {
               console.log('🏁 Stream finished');
               console.log('📝 Full AI response length:', fullAIResponse.length);
+              
+              // Process any remaining buffer content
+              if (buffer.trim()) {
+                const lines = buffer.split('\n');
+                for (const line of lines) {
+                  if (line.trim() && line.startsWith('data: ')) {
+                    try {
+                      const jsonStr = line.slice(6).trim();
+                      if (jsonStr && jsonStr !== '[DONE]') {
+                        const data = JSON.parse(jsonStr);
+                        if (data.type === 'thought_stream' && data.message) {
+                          fullAIResponse += data.message;
+                        }
+                      }
+                    } catch (e: any) {
+                      console.warn(`⚠️ Could not parse final buffer line: ${line}`, e.message);
+                    }
+                  }
+                }
+              }
               
               // Save complete AI response to database if chat_id is provided
               if (chat_id && fullAIResponse) {
@@ -122,28 +144,41 @@ export async function POST(request: Request) {
             chunkCount++;
             console.log(`📦 Processing chunk ${chunkCount}`);
             
-            // Decode the chunk from AI API
+            // Decode the chunk from AI API and add to buffer
             const chunk = decoder.decode(value, { stream: true });
-            console.log(`🔍 Chunk ${chunkCount} content:`, chunk.substring(0, 100) + (chunk.length > 100 ? '...' : ''));
+            buffer += chunk;
             
-            // Forward the chunk directly to the client
-            controller.enqueue(value);
+            // Process complete lines from buffer
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
             
-            // Extract message content for database storage
-            const lines = chunk.split('\n');
             for (const line of lines) {
-              if (line.startsWith('data: ')) {
+              if (line.trim() && line.startsWith('data: ')) {
                 try {
                   const jsonStr = line.slice(6).trim();
-                  if (jsonStr !== '[DONE]' && jsonStr !== '') {
+                  
+                  // Validate and forward the line
+                  if (jsonStr && jsonStr !== '[DONE]') {
+                    // Validate JSON before forwarding
                     const data = JSON.parse(jsonStr);
-                    console.log(`📋 Parsed data:`, data);
-                    if (data.type === 'thought_stream' && data.message) {
-                      fullAIResponse += data.message;
+                    
+                    // Forward all valid message types (not just thought_stream)
+                    if (data.type && typeof data.message === 'string') {
+                      // Forward the properly formatted line
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+                      
+                      // Only accumulate thought_stream for database storage
+                      if (data.type === 'thought_stream') {
+                        fullAIResponse += data.message;
+                      }
                     }
+                  } else if (jsonStr === '[DONE]') {
+                    // Forward the done signal
+                    controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
                   }
                 } catch (e: any) {
                   console.warn(`⚠️ Could not parse chunk line: ${line}`, e.message);
+                  // Don't forward malformed data
                 }
               }
             }
@@ -178,29 +213,6 @@ export async function POST(request: Request) {
       message: error.message,
       stack: error.stack,
       name: error.name
-    });
-    
-    // Fallback response if local AI API is not available
-    const encoder = new TextEncoder();
-    const fallbackStream = new ReadableStream({
-      start(controller) {
-        console.log('🆘 Sending fallback response');
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-          type: "thought_stream",
-          message: "I'm having trouble connecting to the AI service. Please make sure the AI API is running on localhost:8000.",
-          final: true
-        })}\n\n`));
-        controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-        controller.close();
-      }
-    });
-
-    return new Response(fallbackStream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
     });
   }
 } 

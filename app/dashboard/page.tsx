@@ -1,8 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, GitBranch } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { useUser } from '@auth0/nextjs-auth0';
 
 // API functions
 const API = {
@@ -30,10 +33,19 @@ const API = {
     const response = await fetch(`/api/messages?chatId=${chatId}`);
     return response.json();
   },
-  sendMessage: async (user_query: string, chat_id?: string, user_id?: string) => {
+  callAIAutomation: async (user_query: string, chat_id?: string, user_id?: string) => {
+    console.log('=== CALLING AI AUTOMATION ENDPOINT ===');
+    console.log('user_query:', user_query);
+    console.log('chat_id:', chat_id);
+    console.log('user_id:', user_id);
+    console.log('Full payload:', { user_query, chat_id, user_id });
+    
     const response = await fetch('/api/ai/stream', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        "Accept": "text/event-stream",
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({ user_query, chat_id, user_id }),
     });
     return response;
@@ -41,6 +53,7 @@ const API = {
 };
 
 const Dashboard = () => {
+  const { user, isLoading, error } = useUser();
   const [activeTab, setActiveTab] = useState<'flows' | 'agents'>('flows');
   const [flows, setFlows] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
@@ -50,7 +63,7 @@ const Dashboard = () => {
   const [search, setSearch] = useState('');
   const [maximizedSection, setMaximizedSection] = useState<'none' | 'left' | 'graph' | 'chat'>('none');
   const [currentChat, setCurrentChat] = useState<any>(null);
-  const [messages, setMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'bot', timestamp: Date}>>([]);
+  const [messages, setMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'assistant', timestamp: Date}>>([]);
   const [chatInput, setChatInput] = useState('');
   const [leftPanelWidth, setLeftPanelWidth] = useState(320);
   const [chatPanelWidth, setChatPanelWidth] = useState(320);
@@ -58,6 +71,22 @@ const Dashboard = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const graphRef = useRef<{ fitView: () => void }>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Auth0 user data:', { user, isLoading, error });
+    if (user) {
+      console.log('User object keys:', Object.keys(user));
+      console.log('User properties:', {
+        name: user.name,
+        email: user.email,
+        nickname: user.nickname,
+        given_name: user.given_name,
+        family_name: user.family_name,
+        sub: user.sub
+      });
+    }
+  }, [user, isLoading, error]);
 
   // Helper function to safely get ID from item
   const getItemId = (item: any): string => {
@@ -111,7 +140,7 @@ const Dashboard = () => {
           const formattedMessages = chatMessages.map((msg: any) => ({
             id: msg._id,
             text: msg.text || msg.content || '',
-            sender: msg.role === 'user' ? 'user' : 'bot',
+            sender: msg.role === 'user' ? 'user' : 'assistant',
             timestamp: new Date(msg.created_at)
           }));
           setMessages(formattedMessages);
@@ -122,7 +151,7 @@ const Dashboard = () => {
           setMessages([{
             id: '1',
             text: 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.',
-            sender: 'bot',
+            sender: 'assistant',
             timestamp: new Date()
           }]);
         }
@@ -146,7 +175,7 @@ const Dashboard = () => {
       setMessages([{
         id: '1',
         text: 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.',
-        sender: 'bot',
+        sender: 'assistant',
         timestamp: new Date()
       }]);
     } catch (error) {
@@ -155,7 +184,7 @@ const Dashboard = () => {
   };
 
   const sendMessage = async () => {
-    if (chatInput.trim() && !isStreaming) {
+    if (chatInput.trim() && !isStreaming && user?.sub) {
       const userMessage = {
         id: Date.now().toString(),
         text: chatInput,
@@ -168,7 +197,7 @@ const Dashboard = () => {
       setIsStreaming(true);
 
       try {
-        const response = await API.sendMessage(userMessage.text, currentChat?._id, currentChat?.user_id);
+        const response = await API.callAIAutomation(userMessage.text, currentChat?._id, user.sub);
         
         if (response.ok) {
           const reader = response.body?.getReader();
@@ -177,47 +206,179 @@ const Dashboard = () => {
           const botMessage = {
             id: (Date.now() + 1).toString(),
             text: '',
-            sender: 'bot' as const,
+            sender: 'assistant' as const,
             timestamp: new Date()
           };
           
           setMessages(prev => [...prev, botMessage]);
           
           if (reader) {
+            let buffer = '';
+            let accumulatedText = '';
+            let lastUpdateTime = Date.now();
+            const UPDATE_INTERVAL = 300; // Update UI every 300ms to accumulate more text
+            
+            const updateMessage = (text: string) => {
+              setMessages(prev => prev.map(msg => 
+                msg.id === botMessage.id 
+                  ? { ...msg, text: text }
+                  : msg
+              ));
+            };
+            
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
               
-              const chunk = decoder.decode(value);
-              const lines = chunk.split('\n');
+              // Decode chunk and add to buffer
+              const chunk = decoder.decode(value, { stream: true });
+              buffer += chunk;
+              
+              // Process complete lines
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || ''; // Keep incomplete line in buffer
               
               for (const line of lines) {
-                if (line.startsWith('data: ')) {
+                if (line.trim() && line.startsWith('data: ')) {
                   try {
                     const jsonStr = line.slice(6).trim();
-                    if (jsonStr === '[DONE]') {
-                      break;
+                    
+                    // Skip empty data or done signal
+                    if (!jsonStr || jsonStr === '[DONE]') {
+                      continue;
                     }
                     
                     const data = JSON.parse(jsonStr);
                     
-                    if (data.type === 'thought_stream' && data.message) {
-                      setMessages(prev => prev.map(msg => 
-                        msg.id === botMessage.id 
-                          ? { ...msg, text: msg.text + data.message }
-                          : msg
-                      ));
+                    // Handle different message types from your AI server
+                    if (data.type && data.message) {
+                      console.log(`[${data.type}] "${data.message}"`); // Debug logging
+                      let messageToAdd = '';
+                      
+                      switch (data.type) {
+                        case 'thought_stream':
+                          // Main content - add directly
+                          messageToAdd = data.message;
+                          break;
+                          
+                        case 'iteration':
+                          // Show iterations as progress
+                          messageToAdd = `\n\n**${data.message}**\n`;
+                          break;
+                          
+                        case 'thinking':
+                        case 'reasoning_start':
+                          // Show thinking process
+                          messageToAdd = `\n*${data.message}*\n`;
+                          break;
+                          
+                        case 'tool_prep':
+                        case 'tool_ready':
+                        case 'executing':
+                          // Show tool usage
+                          messageToAdd = `\n${data.message}\n`;
+                          break;
+                          
+                        case 'tool_result':
+                        case 'tool_stream':
+                          // Show tool results
+                          messageToAdd = `\n${data.message}\n`;
+                          break;
+                          
+                        case 'final':
+                          // Show completion
+                          messageToAdd = `\n\n**${data.message}**`;
+                          break;
+                          
+                        case 'reasoning_done':
+                        case 'continue':
+                          // Show brief status updates
+                          messageToAdd = `\n*${data.message}*\n`;
+                          break;
+                          
+                        // Skip keepalive and tool_input messages (too noisy)
+                        case 'keepalive':
+                        case 'tool_input':
+                          continue;
+                          
+                        default:
+                          // Show other message types as-is
+                          messageToAdd = data.message;
+                      }
+                      
+                      if (messageToAdd) {
+                        accumulatedText += messageToAdd;
+                        
+                        // Update UI less frequently for thought_stream to avoid choppy display
+                        const now = Date.now();
+                        const isImportantMessage = ['iteration', 'final', 'tool_result'].includes(data.type);
+                        const hasCompleteThought = data.type === 'thought_stream' && (/[.!?]\s*$/.test(messageToAdd) || messageToAdd.length > 10);
+                        const enoughTimeElapsed = now - lastUpdateTime >= UPDATE_INTERVAL;
+                        
+                        // For thought_stream, be more conservative about updates to avoid showing fragments
+                        if (data.type === 'thought_stream') {
+                          // Only update if we have a complete sentence, enough text, or enough time has passed
+                          if (hasCompleteThought || enoughTimeElapsed) {
+                            updateMessage(accumulatedText);
+                            lastUpdateTime = now;
+                          }
+                        } else if (isImportantMessage || enoughTimeElapsed) {
+                          // For other message types, update more readily
+                          updateMessage(accumulatedText);
+                          lastUpdateTime = now;
+                        }
+                      }
                     }
-                  } catch (error) {
-                    console.error('Error parsing streaming data:', error);
+                  } catch (parseError) {
+                    console.warn('Failed to parse streaming data:', line, parseError);
+                    // Continue processing other lines instead of breaking
                   }
                 }
               }
             }
+            
+            // Process any remaining buffer content
+            if (buffer.trim() && buffer.startsWith('data: ')) {
+              try {
+                const jsonStr = buffer.slice(6).trim();
+                if (jsonStr && jsonStr !== '[DONE]') {
+                  const data = JSON.parse(jsonStr);
+                  if (data.type && data.message && data.type !== 'keepalive') {
+                    accumulatedText += data.message;
+                  }
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse final buffer:', buffer, parseError);
+              }
+            }
+            
+            // Final update with complete text
+            updateMessage(accumulatedText);
           }
+        } else {
+          // Handle non-OK response
+          const errorText = await response.text();
+          console.error('API Error:', response.status, errorText);
+          
+          const errorMessage = {
+            id: (Date.now() + 1).toString(),
+            text: 'Sorry, I encountered an error. Please try again.',
+            sender: 'assistant' as const,
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, errorMessage]);
         }
       } catch (error) {
         console.error('Error sending message:', error);
+        
+        // Add error message to chat
+        const errorMessage = {
+          id: (Date.now() + 2).toString(),
+          text: 'Sorry, I encountered a connection error. Please check that the AI service is running.',
+          sender: 'assistant' as const,
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, errorMessage]);
       } finally {
         setIsStreaming(false);
       }
@@ -315,13 +476,27 @@ const Dashboard = () => {
         {/* User menu */}
         <div className="flex items-center gap-2">
           <User size={20} />
-          <a
-            href="/auth/logout"
-            className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-          >
-            <LogOut size={16} />
-            Logout
-          </a>
+          <span className="text-sm text-gray-300 mr-2">
+            {isLoading ? 'Loading...' : user?.name || user?.nickname || user?.given_name || user?.email || 'User'}
+          </span>
+          {user && (
+            <a
+              href="/auth/logout"
+              className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+            >
+              <LogOut size={16} />
+              Logout
+            </a>
+          )}
+          {!user && !isLoading && (
+            <a
+              href="/auth/login"
+              className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              <LogIn size={16} />
+              Login
+            </a>
+          )}
         </div>
       </header>
 
@@ -595,20 +770,56 @@ const Dashboard = () => {
                 key={String(message.id || Math.random())}
                 className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.sender === 'bot' && (
+                {message.sender === 'assistant' && (
                   <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
                     <Bot size={16} className="text-white" />
                   </div>
                 )}
                 
                 <div
-                  className={`max-w-xs px-4 py-3 rounded-2xl text-sm shadow-lg ${
+                  className={`max-w-lg px-4 py-3 rounded-2xl text-sm shadow-lg ${
                     message.sender === 'user'
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                       : 'bg-white/10 backdrop-blur-sm text-gray-100 border border-white/20'
                   }`}
                 >
-                  <div className="whitespace-pre-wrap break-words">{String(message.text || '')}</div>
+                  <div className="whitespace-pre-wrap break-words">
+                    <div className={`prose ${message.sender === 'user' ? 'prose-invert' : 'prose-gray'} max-w-none`}>
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                          strong: ({children}) => <strong className="font-semibold text-white">{children}</strong>,
+                          em: ({children}) => <em className="text-gray-300 text-xs">{children}</em>,
+                          code: ({children}) => <code className="bg-gray-800 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+                          pre: ({children}) => <pre className="bg-gray-800 p-2 rounded text-xs overflow-x-auto">{children}</pre>,
+                          ul: ({children}) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,
+                          li: ({children}) => <li>{children}</li>,
+                          h1: ({children}) => <h1 className="text-lg font-bold mb-2 text-white">{children}</h1>,
+                          h2: ({children}) => <h2 className="text-base font-semibold mb-2 text-white">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-sm font-semibold mb-1 text-white">{children}</h3>,
+                        }}
+                      >
+                        {String(message.text || '')}
+                      </ReactMarkdown>
+                    </div>
+                    {/* Show typing indicator for empty bot messages during streaming */}
+                    {message.sender === 'assistant' && !message.text && isStreaming && (
+                      <div className="flex items-center gap-1 text-gray-400">
+                        <span className="text-xs">AI is thinking</span>
+                        <div className="flex space-x-1">
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Show streaming cursor for bot messages being typed */}
+                  {message.sender === 'assistant' && message.text && isStreaming && (
+                    <span className="inline-block w-2 h-4 bg-blue-400 ml-1 animate-pulse"></span>
+                  )}
                 </div>
                 
                 {message.sender === 'user' && (

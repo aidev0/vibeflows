@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useMemo, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
 import dagre from 'dagre';
 
