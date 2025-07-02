@@ -477,7 +477,7 @@ const Dashboard = () => {
         <div className="flex items-center gap-2">
           <User size={20} />
           <span className="text-sm text-gray-300 mr-2">
-            {isLoading ? 'Loading...' : user?.name || user?.nickname || user?.given_name || user?.email || 'User'}
+            {isLoading ? 'Loading...' : String(user?.name || user?.nickname || user?.given_name || user?.email || 'User')}
           </span>
           {user && (
             <a
