@@ -964,10 +964,10 @@ const Dashboard = () => {
       <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
         {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
-          isMobile ? (maximizedSection === 'left' ? 'fixed top-0 left-0 w-full h-full z-40 bg-gray-900' : 'hidden') :
+          isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
           showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
-        } ${isMobile && maximizedSection === 'left' ? '' : 'border-r border-gray-700'} flex flex-col`}
+        } ${isMobile && maximizedSection === 'left' ? '' : 'border-r border-gray-700'} flex flex-col bg-gray-900`}
         style={maximizedSection === 'left' || isMobile || showN8nWorkflow ? {} : { 
           width: `${leftPanelWidth}px`,
           minWidth: `${leftPanelWidth}px`,
@@ -1184,11 +1184,11 @@ const Dashboard = () => {
 
         {/* Center - Graph View - 70% width when n8n is shown */}
         <div className={`${
-          isMobile ? (maximizedSection === 'chat' ? 'hidden' : 'flex-1 order-1') :
+          isMobile ? (maximizedSection === 'chat' || maximizedSection === 'left' ? 'hidden' : 'flex-1 order-1') :
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
         } bg-gray-900 flex flex-col relative ${
-          isMobile && maximizedSection !== 'chat' ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
+          isMobile && maximizedSection !== 'chat' && maximizedSection !== 'left' ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
         }`}
         style={showN8nWorkflow && !isMobile ? { 
           width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
@@ -1293,7 +1293,7 @@ const Dashboard = () => {
 
         {/* Right Sidebar - Chat - Always visible when n8n is shown (30% width) */}
         <div className={`${
-          isMobile ? 'order-2 border-t' :
+          isMobile ? (maximizedSection === 'left' ? 'hidden' : 'order-2 border-t') :
           (!showN8nWorkflow && (maximizedSection === 'left' || maximizedSection === 'graph')) ? 'hidden' : 
           maximizedSection === 'chat' ? 'flex-1' : ''
         } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
