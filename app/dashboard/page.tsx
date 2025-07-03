@@ -773,14 +773,51 @@ const Dashboard = () => {
   return (
     <>
       {isMobile && (
-        <style jsx>{`
+        <style jsx global>{`
+          /* Mobile container that adapts to dynamic browser bars */
           .mobile-container {
-            height: 75vh;
-            min-height: 75vh;
-            margin-top: 15vh;
-            margin-bottom: 10vh;
+            height: 100dvh;
+            height: 100vh;
+            height: 100svh;
+            min-height: 100dvh;
+            min-height: 100vh; 
+            min-height: 100svh;
             position: relative;
-            z-index: 9998;
+            z-index: 1;
+            padding-top: env(safe-area-inset-top, 20px);
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+            margin: 0;
+            overflow: hidden;
+          }
+          
+          /* Ensure full viewport usage regardless of browser bars */
+          @supports (height: 100dvh) {
+            .mobile-container {
+              height: 100dvh;
+              min-height: 100dvh;
+            }
+          }
+          
+          @supports (height: 100svh) {
+            .mobile-container {
+              height: 100svh;
+              min-height: 100svh;
+            }
+          }
+          
+          /* Mobile navigation with proper layering */
+          .mobile-nav-overlay {
+            z-index: 999999 !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+          }
+          
+          .mobile-nav-sidebar {
+            z-index: 999999 !important;
+            position: relative;
           }
         `}</style>
       )}
@@ -790,7 +827,7 @@ const Dashboard = () => {
         }`}
       >
       {/* Header */}
-      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-[9999]">
+      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-50">
         {/* Mobile Menu Button */}
         {isMobile && (
           <button
@@ -906,7 +943,7 @@ const Dashboard = () => {
 
       {/* Mobile Navigation Sidebar */}
       {(isMobile || isTablet) && isMobileMenuOpen && (
-        <div className="fixed inset-0 z-[9999] flex">
+        <div className="fixed inset-0 z-50 flex mobile-nav-overlay">
           {/* Backdrop */}
           <div 
             className="flex-1 bg-black/50"
@@ -914,7 +951,7 @@ const Dashboard = () => {
           />
           
           {/* Sidebar */}
-          <div className={`bg-gray-800 shadow-lg flex flex-col ${
+          <div className={`bg-gray-800 shadow-lg flex flex-col mobile-nav-sidebar ${
             orientation === 'landscape' && isMobile ? 'w-80' : 'w-64'
           }`}>
             <div className="p-4 border-b border-gray-700">
@@ -1175,7 +1212,7 @@ const Dashboard = () => {
                     className="flex-1 overflow-y-auto px-4 pb-4"
                     style={{ 
                       WebkitOverflowScrolling: 'touch',
-                      height: isMobile ? 'calc(75vh - 200px)' : 'auto'
+                      height: isMobile ? 'calc(100vh - 250px)' : 'auto'
                     }}
                   >
                     <div className="space-y-2">
@@ -1343,7 +1380,7 @@ const Dashboard = () => {
         style={maximizedSection === 'chat' && !isMobile ? {} : 
           isMobile ? 
             (maximizedSection === 'chat' ? 
-              { height: orientation === 'landscape' ? '45vh' : '63vh' } : 
+              { height: orientation === 'landscape' ? '50vh' : '70vh' } : 
               { height: orientation === 'landscape' ? '200px' : '300px' }
             ) : 
           showN8nWorkflow && !isMobile ? {
