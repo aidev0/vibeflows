@@ -1137,11 +1137,11 @@ const Dashboard = () => {
 
         {/* Center - Graph View - 70% width when n8n is shown */}
         <div className={`${
-          isMobile ? 'flex-1 order-1' :
+          isMobile ? (maximizedSection === 'chat' ? 'hidden' : 'flex-1 order-1') :
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
         } bg-gray-900 flex flex-col relative ${
-          isMobile ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
+          isMobile && maximizedSection !== 'chat' ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
         }`}
         style={showN8nWorkflow && !isMobile ? { 
           width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
@@ -1252,8 +1252,12 @@ const Dashboard = () => {
         } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
           isMobile ? 'w-full' : ''
         }`}
-        style={maximizedSection === 'chat' || isMobile ? 
-          (isMobile ? { height: orientation === 'landscape' ? '200px' : '300px' } : {}) : 
+        style={maximizedSection === 'chat' && !isMobile ? {} : 
+          isMobile ? 
+            (maximizedSection === 'chat' ? 
+              { height: orientation === 'landscape' ? '60vh' : '85vh' } : 
+              { height: orientation === 'landscape' ? '200px' : '300px' }
+            ) : 
           showN8nWorkflow && !isMobile ? {
             width: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
             minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
