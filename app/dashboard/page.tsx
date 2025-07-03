@@ -405,7 +405,7 @@ const Dashboard = () => {
         chatTitle = chatTitle.substring(0, 40).replace(/\s+\S*$/, '');
       }
       
-      const newChat = await API.createChat(chatTitle, user?.sub);
+      const newChat = await API.createChat(chatTitle, user?.sub || undefined);
       setCurrentChat(newChat);
       
       // Update session with new chat_id
