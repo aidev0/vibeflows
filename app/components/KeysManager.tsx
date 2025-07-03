@@ -129,14 +129,14 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
 
   const handleEdit = (key: UserKey) => {
     console.log('Editing key:', key);
-    const value = key.key_value || key.value || '';
+    const value = key.key_value || '';
     const stringValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
     
     setFormData({
-      key_name: key.key_name || key.name || '',
+      key_name: key.key_name || '',
       key_value: stringValue,
       description: key.description || '',
-      key_type: key.key_type || key.type || 'api_key'
+      key_type: key.key_type || 'api_key'
     });
     setEditingKey(key._id || '');
     setSelectedPredefined(key._id || ''); // Set dropdown to show the selected key
