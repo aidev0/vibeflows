@@ -400,7 +400,15 @@ const Dashboard = () => {
       // If no workflows found, do nothing - don't show anything
     } catch (error) {
       console.error('Error loading n8n workflows:', error);
-      alert(`Error loading n8n workflows: ${error.message}`);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      // Only show alert for actual errors, not empty results
+      if (error.message !== 'Failed to fetch workflows from database') {
+        alert(`Error loading n8n workflows: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
