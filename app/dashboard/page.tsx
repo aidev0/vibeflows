@@ -1453,9 +1453,19 @@ const Dashboard = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Mobile Chat Maximize Button */}
+          {/* Mobile Chat Controls */}
           {isMobile && (
-            <div className="absolute top-2 right-2 z-10">
+            <div className="absolute top-2 right-2 z-10 flex gap-2">
+              {/* New Chat Button */}
+              <button
+                onClick={() => createNewChat()}
+                className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/80 hover:bg-blue-700/90 shadow-lg"
+                title="Start new chat"
+              >
+                <Plus size={12} className="text-white" />
+              </button>
+              
+              {/* Maximize Button */}
               <button
                 onClick={() => setMaximizedSection(maximizedSection === 'chat' ? 'none' : 'chat')}
                 className={`w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center ${
