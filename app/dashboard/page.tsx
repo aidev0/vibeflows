@@ -889,7 +889,13 @@ const Dashboard = () => {
                     setActiveTab(t as any);
                     setSelectedItem(null);
                     setSelectedNode(null);
-                    setIsMobileMenuOpen(false);
+                    if (isMobile) {
+                      // In mobile, show the left panel with items to choose from
+                      setMaximizedSection('left');
+                      setIsMobileMenuOpen(false);
+                    } else {
+                      setIsMobileMenuOpen(false);
+                    }
                   }}
                   className={`
                     w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-lg
@@ -977,16 +983,31 @@ const Dashboard = () => {
           >
             {/* Left Panel Header */}
             <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-              <h2 className="font-semibold text-white">
-                {selectedNode ? 'Node Details' : formatName(activeTab)}
-              </h2>
+              <div className="flex items-center gap-2">
+                {isMobile && maximizedSection === 'left' && (
+                  <button
+                    onClick={() => setMaximizedSection('none')}
+                    className="p-1 hover:bg-gray-600 rounded transition-colors"
+                    title="Back to dashboard"
+                  >
+                    <X size={16} className="text-gray-300" />
+                  </button>
+                )}
+                <h2 className="font-semibold text-white">
+                  {selectedNode ? 'Node Details' : 
+                   isMobile && maximizedSection === 'left' ? `Choose ${formatName(activeTab)}` :
+                   formatName(activeTab)}
+                </h2>
+              </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setMaximizedSection(maximizedSection === 'left' ? 'none' : 'left')}
-                  className="p-1 hover:bg-gray-700 rounded"
-                >
-                  {maximizedSection === 'left' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                </button>
+                {!isMobile && (
+                  <button
+                    onClick={() => setMaximizedSection(maximizedSection === 'left' ? 'none' : 'left')}
+                    className="p-1 hover:bg-gray-700 rounded"
+                  >
+                    {maximizedSection === 'left' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1101,7 +1122,13 @@ const Dashboard = () => {
                     {filtered.map((item) => (
                       <div
                         key={getItemId(item)}
-                        onClick={() => setSelectedItem(item)}
+                        onClick={() => {
+                          setSelectedItem(item);
+                          if (isMobile) {
+                            // In mobile, close the left panel after selection
+                            setMaximizedSection('none');
+                          }
+                        }}
                         className={`p-3 rounded cursor-pointer transition-colors ${
                           selectedItem && getItemId(selectedItem) === getItemId(item)
                             ? 'bg-blue-600 text-white'
