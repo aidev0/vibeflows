@@ -366,7 +366,7 @@ const Dashboard = () => {
           const greetingText = `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`;
           
           // Send greeting message to database
-          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant', user.sub);
+          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant', user.sub || undefined);
           
           // Display greeting message in UI
           setMessages([{
