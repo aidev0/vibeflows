@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useMemo, useState, useEffect } from 'react';
-import { X, Play, Settings, Download, Eye, EyeOff } from 'lucide-react';
+import { X, Play, Settings, Download, Eye, EyeOff, RefreshCw, Zap, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface N8nWorkflowViewerProps {
   workflow: any;
@@ -10,8 +10,6 @@ interface N8nWorkflowViewerProps {
 
 const N8nWorkflowViewer: React.FC<N8nWorkflowViewerProps> = ({ workflow, onClose }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [credentials, setCredentials] = useState<any[]>([]);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
 
   // Extract n8n workflow data
   const workflowData = useMemo(() => {
@@ -23,58 +21,6 @@ const N8nWorkflowViewer: React.FC<N8nWorkflowViewerProps> = ({ workflow, onClose
 
   const nodes = workflowData?.nodes || [];
   const connections = workflowData?.connections || {};
-
-  // Fetch credentials when component mounts
-  useEffect(() => {
-    fetchCredentials();
-  }, []);
-
-  const fetchCredentials = async () => {
-    try {
-      const response = await fetch('/api/credentials');
-      if (response.ok) {
-        const data = await response.json();
-        setCredentials(data.keys || []);
-      }
-    } catch (error) {
-      console.error('Error fetching credentials:', error);
-    }
-  };
-
-  // Filter credentials relevant to n8n
-  const n8nCredentials = useMemo(() => {
-    return credentials.filter(cred => 
-      cred.key_name?.toLowerCase().includes('n8n') ||
-      cred.key_name?.toLowerCase().includes('gmail') ||
-      cred.key_name?.toLowerCase().includes('google') ||
-      cred.key_name?.toLowerCase().includes('openai') ||
-      cred.key_name?.toLowerCase().includes('gemini') ||
-      nodes.some((node: any) => 
-        node.type?.toLowerCase().includes(cred.key_name?.toLowerCase().split('_')[0]) ||
-        node.name?.toLowerCase().includes(cred.key_name?.toLowerCase().split('_')[0])
-      )
-    );
-  }, [credentials, nodes]);
-
-  const toggleKeyVisibility = (keyId: string) => {
-    const newVisible = new Set(visibleKeys);
-    if (newVisible.has(keyId)) {
-      newVisible.delete(keyId);
-    } else {
-      newVisible.add(keyId);
-    }
-    setVisibleKeys(newVisible);
-  };
-
-  const maskKey = (value: string | any) => {
-    if (!value) return '••••••••';
-    
-    // Convert objects to string
-    const stringValue = typeof value === 'object' ? JSON.stringify(value) : String(value);
-    
-    if (stringValue.length <= 8) return '*'.repeat(stringValue.length);
-    return stringValue.slice(0, 4) + '*'.repeat(stringValue.length - 8) + stringValue.slice(-4);
-  };
 
   // Render n8n workflow nodes
   const renderWorkflow = () => {
@@ -236,126 +182,6 @@ const N8nWorkflowViewer: React.FC<N8nWorkflowViewerProps> = ({ workflow, onClose
       {/* Workflow Canvas */}
       <div ref={canvasRef} className="flex-1 relative overflow-y-auto">
         {renderWorkflow()}
-        
-        {/* Credentials Section at Bottom */}
-        {(n8nCredentials.length > 0 || credentials.length > 0) && (
-          <div className="mt-8 p-6 bg-gray-800/50 border-t border-gray-700">
-            <h3 className="text-lg font-semibold text-white mb-4">Workflow Credentials</h3>
-            
-            {/* Workflow-Relevant Credentials */}
-            {n8nCredentials.length > 0 && (
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-300 mb-3">Related Credentials</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {n8nCredentials.map((cred) => (
-                    <div key={cred._id} className="bg-gray-700 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="text-sm font-semibold text-white">{cred.key_name}</h5>
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          cred.key_type === 'api_key' ? 'bg-blue-500/20 text-blue-300' :
-                          cred.key_type === 'oauth_token' ? 'bg-green-500/20 text-green-300' :
-                          cred.key_type === 'url' ? 'bg-purple-500/20 text-purple-300' :
-                          'bg-gray-500/20 text-gray-300'
-                        }`}>
-                          {cred.key_type}
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-start gap-2 mb-2 min-w-0">
-                        <code className="bg-gray-800 px-2 py-1 rounded text-xs font-mono text-gray-300 flex-1 min-w-0 overflow-hidden break-all whitespace-pre-wrap max-h-20 overflow-y-auto">
-                          {(() => {
-                            const value = cred.key_value || cred.value;
-                            if (!value) return 'No value';
-                            
-                            if (visibleKeys.has(cred._id || '')) {
-                              return typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-                            } else {
-                              return maskKey(value);
-                            }
-                          })()}
-                        </code>
-                        <button
-                          onClick={() => toggleKeyVisibility(cred._id || '')}
-                          className="p-1 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
-                        >
-                          {visibleKeys.has(cred._id || '') ? 
-                            <EyeOff size={12} className="text-gray-400" /> : 
-                            <Eye size={12} className="text-gray-400" />
-                          }
-                        </button>
-                      </div>
-                      
-                      {cred.description && (
-                        <p className="text-xs text-gray-400">{cred.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* All User Credentials */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-300 mb-3">All Available Credentials ({credentials.length})</h4>
-              {credentials.length === 0 ? (
-                <div className="text-center py-6">
-                  <p className="text-gray-400 text-sm">No credentials found</p>
-                  <p className="text-gray-500 text-xs mt-1">Add API keys in Keys manager</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {credentials.map((cred) => (
-                    <div key={cred._id} className="bg-gray-750 rounded-lg p-3 border border-gray-600">
-                      <div className="flex items-center justify-between mb-2">
-                        <h6 className="text-sm font-medium text-white truncate">{cred.key_name}</h6>
-                        <div className="flex items-center gap-1">
-                          <span className={`px-1 py-0.5 rounded text-xs font-medium ${
-                            cred.key_type === 'api_key' ? 'bg-blue-500/20 text-blue-300' :
-                            cred.key_type === 'oauth_token' ? 'bg-green-500/20 text-green-300' :
-                            cred.key_type === 'url' ? 'bg-purple-500/20 text-purple-300' :
-                            cred.key_type === 'connection_string' ? 'bg-yellow-500/20 text-yellow-300' :
-                            cred.key_type === 'service_account_json' ? 'bg-red-500/20 text-red-300' :
-                            'bg-gray-500/20 text-gray-300'
-                          }`}>
-                            {cred.key_type}
-                          </span>
-                          <button
-                            onClick={() => toggleKeyVisibility(cred._id || '')}
-                            className="p-0.5 hover:bg-gray-600 rounded transition-colors"
-                          >
-                            {visibleKeys.has(cred._id || '') ? 
-                              <EyeOff size={10} className="text-gray-400" /> : 
-                              <Eye size={10} className="text-gray-400" />
-                            }
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="mb-1">
-                        <code className="bg-gray-800 px-1 py-0.5 rounded text-xs font-mono text-gray-300 block w-full overflow-hidden break-all whitespace-pre-wrap max-h-16 overflow-y-auto">
-                          {(() => {
-                            const value = cred.key_value || cred.value;
-                            if (!value) return 'No value';
-                            
-                            if (visibleKeys.has(cred._id || '')) {
-                              return typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-                            } else {
-                              return maskKey(value);
-                            }
-                          })()}
-                        </code>
-                      </div>
-                      
-                      {cred.description && (
-                        <p className="text-xs text-gray-500 truncate">{cred.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
       
       {/* Status Bar */}

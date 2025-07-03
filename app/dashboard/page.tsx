@@ -358,29 +358,36 @@ const Dashboard = () => {
   const loadN8nWorkflow = async () => {
     try {
       setLoading(true);
-      console.log('Loading n8n workflows...');
-      const flows = await API.getFlows();
-      console.log('All flows:', flows);
+      console.log('Loading n8n workflows from database...');
       
-      // Find the latest n8n workflow - simplified search
-      const n8nWorkflows = flows.filter(flow => {
-        console.log('Checking flow:', flow);
-        return flow.workflow_json || flow.n8n_response;
-      });
+      // Get workflows from database (n8n_workflows collection)
+      const workflowsResponse = await fetch('/api/n8n?action=db_workflows');
+      const workflowsResult = await workflowsResponse.json();
       
-      console.log('Filtered n8n workflows:', n8nWorkflows);
+      if (!workflowsResponse.ok) {
+        throw new Error(workflowsResult.error || 'Failed to fetch workflows from database');
+      }
       
-      if (n8nWorkflows.length > 0) {
-        // Sort by newest and take the latest
-        const sortedN8n = n8nWorkflows.sort((a, b) => {
-          if (a.created_at && b.created_at) {
-            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-          }
-          return 0;
-        });
+      console.log('Database n8n workflows:', workflowsResult);
+      
+      if (workflowsResult.data && workflowsResult.data.length > 0) {
+        // Get the most recent workflow (or first one)
+        const latestWorkflow = workflowsResult.data[0];
+        console.log('Selected latest workflow:', latestWorkflow);
         
-        console.log('Selected n8n workflow:', sortedN8n[0]);
-        setN8nWorkflow(sortedN8n[0]);
+        // Structure the workflow data for our viewer
+        const structuredWorkflow = {
+          id: latestWorkflow.id || latestWorkflow._id,
+          name: latestWorkflow.name,
+          workflow_json: latestWorkflow,
+          nodes: latestWorkflow.nodes || [],
+          connections: latestWorkflow.connections || {},
+          active: latestWorkflow.active,
+          created_at: latestWorkflow.createdAt || latestWorkflow.created_at,
+          updated_at: latestWorkflow.updatedAt || latestWorkflow.updated_at
+        };
+        
+        setN8nWorkflow(structuredWorkflow);
         setShowN8nWorkflow(true);
         
         // Set n8n mode layout: hide left panel, show graph (70%) and chat (30%)
@@ -390,26 +397,11 @@ const Dashboard = () => {
           setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
         }
       } else {
-        console.log('No n8n workflows found, trying first flow anyway');
-        // Temporarily try the first flow for testing
-        if (flows.length > 0) {
-          console.log('Using first flow for testing:', flows[0]);
-          setN8nWorkflow(flows[0]);
-          setShowN8nWorkflow(true);
-          
-          // Set n8n mode layout
-          setMaximizedSection('none');
-          if (!isMobile) {
-            setLeftPanelWidth(0);
-            setChatPanelWidth(window.innerWidth * 0.3);
-          }
-        } else {
-          alert('No flows found at all');
-        }
+        alert('No n8n workflows found in database. Please import some workflows first.');
       }
     } catch (error) {
-      console.error('Error loading n8n workflow:', error);
-      alert('Error loading n8n workflow: ' + error.message);
+      console.error('Error loading n8n workflows:', error);
+      alert(`Error loading n8n workflows: ${error.message}`);
     } finally {
       setLoading(false);
     }
