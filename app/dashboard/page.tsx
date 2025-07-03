@@ -746,10 +746,8 @@ const Dashboard = () => {
       {isMobile && (
         <style jsx>{`
           .mobile-container {
-            height: 100vh;
-            height: 100dvh;
-            min-height: 100vh;
-            min-height: 100dvh;
+            height: 90vh;
+            min-height: 90vh;
           }
         `}</style>
       )}
@@ -1144,7 +1142,7 @@ const Dashboard = () => {
                     className="flex-1 overflow-y-auto px-4 pb-4"
                     style={{ 
                       WebkitOverflowScrolling: 'touch',
-                      height: isMobile ? 'calc(100vh - 200px)' : 'auto'
+                      height: isMobile ? 'calc(90vh - 200px)' : 'auto'
                     }}
                   >
                     <div className="space-y-2">
@@ -1312,7 +1310,7 @@ const Dashboard = () => {
         style={maximizedSection === 'chat' && !isMobile ? {} : 
           isMobile ? 
             (maximizedSection === 'chat' ? 
-              { height: orientation === 'landscape' ? '60vh' : '85vh' } : 
+              { height: orientation === 'landscape' ? '54vh' : '76vh' } : 
               { height: orientation === 'landscape' ? '200px' : '300px' }
             ) : 
           showN8nWorkflow && !isMobile ? {
