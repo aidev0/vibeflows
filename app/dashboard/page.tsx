@@ -53,6 +53,19 @@ const API = {
     });
     return response;
   },
+  sendMessage: async (chatId: string, text: string, role: 'user' | 'assistant', userId?: string) => {
+    const response = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        chat_id: chatId, 
+        text: text, 
+        role: role,
+        user_id: userId 
+      }),
+    });
+    return response.json();
+  },
 };
 
 const Dashboard = () => {
@@ -349,12 +362,18 @@ const Dashboard = () => {
             await updateUserSession(newSessionId, { chat_id: newChat._id });
           }
           
-          // Add greeting message for new user
+          // Create and send greeting message to database
+          const greetingText = `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`;
+          
+          // Send greeting message to database
+          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant', user.sub);
+          
+          // Display greeting message in UI
           setMessages([{
-            id: '1',
-            text: `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`,
+            id: savedMessage._id || '1',
+            text: greetingText,
             sender: 'assistant',
-            timestamp: new Date()
+            timestamp: new Date(savedMessage.created_at || new Date())
           }]);
         }
       } catch (err) {
@@ -1542,18 +1561,11 @@ const Dashboard = () => {
               
               {/* Maximize Button */}
               <button
-                onClick={() => setMaximizedSection(maximizedSection === 'chat' ? 'none' : 'chat')}
-                className={`w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center ${
-                  maximizedSection === 'chat' 
-                    ? 'bg-purple-500 hover:bg-purple-600' 
-                    : 'bg-gray-700/80 hover:bg-gray-600/90'
-                } shadow-lg`}
-                title={maximizedSection === 'chat' ? 'Restore chat' : 'Maximize chat'}
+                onClick={() => setMaximizedSection('chat')}
+                className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/80 hover:bg-gray-600/90 shadow-lg"
+                title="Maximize chat"
               >
-                {maximizedSection === 'chat' ? 
-                  <Minimize2 size={12} className="text-white" /> : 
-                  <Maximize2 size={12} className="text-white" />
-                }
+                <Maximize2 size={12} className="text-white" />
               </button>
             </div>
           )}
