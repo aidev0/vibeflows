@@ -17,11 +17,24 @@ export async function GET(request: Request) {
     
     switch (action) {
       case 'db_workflows':
-        // Get latest workflow from database (n8n_workflows collection)
+        // Get latest workflow from database (n8n_workflows collection) - only essential fields
         const latestWorkflow = await db.collection('n8n_workflows')
           .findOne(
             { user_id: session.user.sub },
-            { sort: { created_at: -1 } }
+            { 
+              sort: { created_at: -1 },
+              projection: {
+                id: 1,
+                name: 1,
+                nodes: 1,
+                connections: 1,
+                active: 1,
+                created_at: 1,
+                updated_at: 1,
+                createdAt: 1,
+                updatedAt: 1
+              }
+            }
           );
         return NextResponse.json({ data: latestWorkflow ? [latestWorkflow] : [] });
       default:
