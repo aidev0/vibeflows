@@ -964,10 +964,10 @@ const Dashboard = () => {
       <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
         {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
-          isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
+          isMobile ? (maximizedSection === 'left' ? 'fixed inset-0 z-40 bg-gray-900' : 'hidden') :
           showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
-        } border-r border-gray-700 flex flex-col relative`}
+        } ${isMobile && maximizedSection === 'left' ? '' : 'border-r border-gray-700'} flex flex-col relative`}
         style={maximizedSection === 'left' || isMobile || showN8nWorkflow ? {} : { 
           width: `${leftPanelWidth}px`,
           minWidth: `${leftPanelWidth}px`,
@@ -975,7 +975,11 @@ const Dashboard = () => {
         }}>
           {/* Left Panel - List */}
           <div 
-            className={`bg-gray-800 border-r border-gray-700 overflow-y-auto transition-all duration-300 ${
+            className={`${
+              isMobile && maximizedSection === 'left' 
+                ? 'bg-gray-900 h-full w-full overflow-y-auto' 
+                : 'bg-gray-800 border-r border-gray-700 overflow-y-auto'
+            } transition-all duration-300 ${
               maximizedSection === 'left' ? 'w-full' : 
               maximizedSection !== 'none' ? 'w-0 opacity-0' : ''
             }`}
@@ -1102,7 +1106,7 @@ const Dashboard = () => {
               </div>
             ) : (
               // Original flow/agent list
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0">
                 <div className="p-4 flex-shrink-0">
                   <input
                     type="text"
@@ -1118,7 +1122,14 @@ const Dashboard = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto px-4 pb-4">
+                  <div 
+                    className="flex-1 overflow-y-auto px-4 pb-4" 
+                    style={{ 
+                      maxHeight: '100%',
+                      minHeight: '200px',
+                      WebkitOverflowScrolling: 'touch'
+                    }}
+                  >
                     <div className="space-y-2">
                     {filtered.map((item) => (
                       <div
