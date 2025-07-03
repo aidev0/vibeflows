@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
     const db = await getDb();
-    const chats = await db.collection('chats').find({}).sort({ created_at: -1 }).toArray();
+    const query = userId ? { user_id: userId } : {};
+    const chats = await db.collection('chats').find(query).sort({ created_at: -1 }).toArray();
     
     return NextResponse.json(chats);
   } catch (error) {

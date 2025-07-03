@@ -24,11 +24,11 @@ const API = {
     const response = await fetch(`/api/chats${userId ? `?userId=${userId}` : ''}`);
     return response.json();
   },
-  createChat: async (name: string) => {
+  createChat: async (name: string, userId?: string) => {
     const response = await fetch('/api/chats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, user_id: userId }),
     });
     return response.json();
   },
@@ -304,9 +304,15 @@ const Dashboard = () => {
   // Initialize user session and chat
   useEffect(() => {
     const initUserSession = async () => {
-      if (!user) return;
+      // Wait until we have a valid user with user_id
+      if (!user || !user.sub) {
+        console.log('Waiting for user session...', { user: !!user, userSub: user?.sub });
+        return;
+      }
 
       try {
+        console.log('Initializing user session for user_id:', user.sub);
+        
         // Create user session
         const newSessionId = await createUserSession({
           user_profile: {
@@ -318,8 +324,8 @@ const Dashboard = () => {
         });
         setSessionId(newSessionId);
 
-        // Load latest chat for this user_id
-        const chats = await API.getChats(user.sub || '');
+        // Load latest chat for this user_id (now guaranteed to be valid)
+        const chats = await API.getChats(user.sub);
         
         if (chats && chats.length > 0) {
           // Load the most recent chat for this user
@@ -353,7 +359,7 @@ const Dashboard = () => {
             userQuery.substring(0, 40).replace(/\s+\S*$/, '') : // Remove incomplete words
             userQuery;
             
-          const newChat = await API.createChat(chatTitle);
+          const newChat = await API.createChat(chatTitle, user.sub);
           setCurrentChat(newChat);
           
           // Update session with new chat_id
@@ -399,7 +405,7 @@ const Dashboard = () => {
         chatTitle = chatTitle.substring(0, 40).replace(/\s+\S*$/, '');
       }
       
-      const newChat = await API.createChat(chatTitle);
+      const newChat = await API.createChat(chatTitle, user?.sub);
       setCurrentChat(newChat);
       
       // Update session with new chat_id
@@ -1292,7 +1298,7 @@ const Dashboard = () => {
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
         } bg-gray-900 flex flex-col relative ${
           isMobile && maximizedSection !== 'chat' && maximizedSection !== 'left' ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
-        }`}
+        } ${isMobile ? 'pt-2' : ''}`}
         style={showN8nWorkflow && !isMobile ? { 
           width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
           minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
@@ -1301,7 +1307,7 @@ const Dashboard = () => {
           
           {/* Graph Header - Mobile only for regular flows */}
           {isMobile && !showN8nWorkflow && (
-            <div className="bg-gray-800 border-b border-gray-700 px-3 py-2 flex items-center justify-between flex-shrink-0">
+            <div className="bg-gray-800 border-b border-gray-700 px-3 py-2 flex items-center justify-between flex-shrink-0 relative z-40">
               <div className="flex items-center gap-2">
                 {activeTab === 'flows' ? (
                   <Network size={18} className="text-green-400" />

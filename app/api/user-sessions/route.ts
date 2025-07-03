@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@auth0/nextjs-auth0';
+import { getDb } from '@/app/lib/mongodb';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,14 +37,10 @@ export async function POST(request: NextRequest) {
       status: 'active'
     };
 
-    // Here you would typically save to your database
-    // For now, let's log it and return success
-    console.log('User session created:', sessionData);
-
-    // TODO: Save to MongoDB user_sessions collection
-    // Example MongoDB save:
-    // const db = await connectToDatabase();
-    // await db.collection('user_sessions').insertOne(sessionData);
+    // Save to MongoDB user_sessions collection
+    const db = await getDb();
+    const result = await db.collection('user_sessions').insertOne(sessionData);
+    console.log('User session saved to MongoDB:', { session_id: sessionData.session_id, insertedId: result.insertedId });
 
     return NextResponse.json({ 
       success: true, 
@@ -64,15 +61,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // TODO: Fetch user sessions from database
-    // Example:
-    // const db = await connectToDatabase();
-    // const userSessions = await db.collection('user_sessions')
-    //   .find({ user_id: session.user.sub })
-    //   .sort({ created_at: -1 })
-    //   .toArray();
-
-    const userSessions: any[] = []; // Placeholder
+    // Fetch user sessions from database
+    const db = await getDb();
+    const userSessions = await db.collection('user_sessions')
+      .find({ user_id: session.user.sub })
+      .sort({ created_at: -1 })
+      .toArray();
 
     return NextResponse.json({ sessions: userSessions });
 
@@ -99,15 +93,14 @@ export async function PATCH(request: NextRequest) {
     if (chat_id !== undefined) updateData.chat_id = chat_id;
     if (status !== undefined) updateData.status = status;
 
-    // TODO: Update session in database
-    // Example:
-    // const db = await connectToDatabase();
-    // await db.collection('user_sessions').updateOne(
-    //   { session_id, user_id: session.user.sub },
-    //   { $set: updateData }
-    // );
+    // Update session in database
+    const db = await getDb();
+    await db.collection('user_sessions').updateOne(
+      { session_id, user_id: session.user.sub },
+      { $set: updateData }
+    );
 
-    console.log('Session updated:', { session_id, updateData });
+    console.log('Session updated in MongoDB:', { session_id, updateData });
 
     return NextResponse.json({ 
       success: true,
