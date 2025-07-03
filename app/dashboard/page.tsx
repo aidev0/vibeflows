@@ -1390,6 +1390,26 @@ const Dashboard = () => {
             <div ref={chatEndRef} />
           </div>
 
+          {/* Mobile Chat Maximize Button */}
+          {isMobile && (
+            <div className="absolute top-2 right-2 z-10">
+              <button
+                onClick={() => setMaximizedSection(maximizedSection === 'chat' ? 'none' : 'chat')}
+                className={`w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center ${
+                  maximizedSection === 'chat' 
+                    ? 'bg-purple-500 hover:bg-purple-600' 
+                    : 'bg-gray-700/80 hover:bg-gray-600/90'
+                } shadow-lg`}
+                title={maximizedSection === 'chat' ? 'Restore chat' : 'Maximize chat'}
+              >
+                {maximizedSection === 'chat' ? 
+                  <Minimize2 size={12} className="text-white" /> : 
+                  <Maximize2 size={12} className="text-white" />
+                }
+              </button>
+            </div>
+          )}
+
           {/* Chat Input */}
           <div className={`border-t border-white/10 ${
             isMobile ? 'p-2' : 'p-4'
