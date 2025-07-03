@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -65,12 +65,93 @@ const Dashboard = () => {
   const [currentChat, setCurrentChat] = useState<any>(null);
   const [messages, setMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'assistant', timestamp: Date}>>([]);
   const [chatInput, setChatInput] = useState('');
-  const [leftPanelWidth, setLeftPanelWidth] = useState(320);
-  const [chatPanelWidth, setChatPanelWidth] = useState(320);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(window.innerWidth * 0.2);
+  const [chatPanelWidth, setChatPanelWidth] = useState(window.innerWidth * 0.4);
   const [isDragging, setIsDragging] = useState<'left' | 'right' | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [isTablet, setIsTablet] = useState(false);
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
   const graphRef = useRef<{ fitView: () => void }>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Enhanced device detection with orientation support
+  useEffect(() => {
+    const detectDevice = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const userAgent = navigator.userAgent;
+      
+      // Detect device type
+      const isMobileDevice = width < 768;
+      const isTabletDevice = width >= 768 && width < 1024;
+      const isDesktopDevice = width >= 1024;
+      
+      // More sophisticated mobile detection
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      
+      // Determine orientation
+      const currentOrientation = height > width ? 'portrait' : 'landscape';
+      
+      // Set device type with touch and user agent consideration
+      let deviceCategory: 'mobile' | 'tablet' | 'desktop';
+      if (isMobileDevice || (isTouchDevice && isMobileUserAgent && width < 768)) {
+        deviceCategory = 'mobile';
+      } else if (isTabletDevice || (isTouchDevice && width >= 768 && width < 1024)) {
+        deviceCategory = 'tablet';
+      } else {
+        deviceCategory = 'desktop';
+      }
+      
+      setIsMobile(deviceCategory === 'mobile');
+      setIsTablet(deviceCategory === 'tablet');
+      setDeviceType(deviceCategory);
+      setOrientation(currentOrientation);
+      
+      console.log('Device detection:', {
+        width,
+        height,
+        deviceCategory,
+        orientation: currentOrientation,
+        isTouchDevice,
+        isMobileUserAgent
+      });
+    };
+    
+    detectDevice();
+    
+    // Listen for both resize and orientation changes
+    const handleResize = () => detectDevice();
+    const handleOrientationChange = () => {
+      // Small delay to ensure dimensions are updated after orientation change
+      setTimeout(detectDevice, 100);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, []);
+
+  // Update panel widths on window resize to maintain proportions
+  useEffect(() => {
+    const handleResize = () => {
+      if (!isMobile) {
+        const newWidth = window.innerWidth;
+        setLeftPanelWidth(newWidth * 0.2);
+        setChatPanelWidth(newWidth * 0.4);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile]);
 
   // Debug logging
   useEffect(() => {
@@ -116,6 +197,23 @@ const Dashboard = () => {
       try {
         const data = activeTab === 'flows' ? await API.getFlows() : await API.getAgents();
         activeTab === 'flows' ? setFlows(data) : setAgents(data);
+        
+        // Auto-select latest item with flow_id, or first item for mobile
+        if (data && data.length > 0) {
+          // Find the latest item with flow_id (nodes/edges data)
+          const itemWithGraph = data.find(item => 
+            item.flow_id || 
+            (item.nodes && item.nodes.length > 0) || 
+            (item.functions && item.functions.length > 0)
+          );
+          
+          if (itemWithGraph) {
+            setSelectedItem(itemWithGraph);
+          } else if (isMobile) {
+            // Fallback to first item on mobile
+            setSelectedItem(data[0]);
+          }
+        }
       } catch (err) {
         console.error('Error fetching data:', err);
       } finally {
@@ -123,7 +221,7 @@ const Dashboard = () => {
       }
     };
     fetchData();
-  }, [activeTab]);
+  }, [activeTab, isMobile]);
 
   // Initialize or load existing chat
   useEffect(() => {
@@ -255,55 +353,84 @@ const Dashboard = () => {
                       console.log(`[${data.type}] "${data.message}"`); // Debug logging
                       let messageToAdd = '';
                       
-                      switch (data.type) {
-                        case 'thought_stream':
-                          // Main content - add directly
-                          messageToAdd = data.message;
-                          break;
-                          
-                        case 'iteration':
-                          // Show iterations as progress
-                          messageToAdd = `\n**${data.message}**\n`;
-                          break;
-                          
-                        case 'thinking':
-                        case 'reasoning_start':
-                          // Show thinking process
-                          messageToAdd = `\n*${data.message}*\n`;
-                          break;
-                          
-                        case 'tool_prep':
-                        case 'tool_ready':
-                        case 'executing':
-                          // Show tool usage
-                          messageToAdd = `\n${data.message}\n`;
-                          break;
-                          
-                        case 'tool_result':
-                        case 'tool_stream':
-                          // Show tool results
-                          messageToAdd = `\n${data.message}\n`;
-                          break;
-                          
-                        case 'final':
-                          // Show completion
-                          messageToAdd = `\n**${data.message}**`;
-                          break;
-                          
-                        case 'reasoning_done':
-                        case 'continue':
-                          // Show brief status updates
-                          messageToAdd = `\n*${data.message}*\n`;
-                          break;
-                          
-                        // Skip keepalive and tool_input messages (too noisy)
-                        case 'keepalive':
-                        case 'tool_input':
-                          continue;
-                          
-                        default:
-                          // Show other message types as-is
-                          messageToAdd = `\n*${data.message}`;
+                      // Mobile-optimized message filtering
+                      if (isMobile) {
+                        switch (data.type) {
+                          case 'thought_stream':
+                            // Main content only on mobile
+                            messageToAdd = data.message;
+                            break;
+                            
+                          case 'final':
+                            // Final results
+                            messageToAdd = `\n**${data.message}**`;
+                            break;
+                            
+                          case 'tool_result':
+                            // Important tool results only
+                            messageToAdd = `\n${data.message}\n`;
+                            break;
+                            
+                          // Skip all other verbose messages on mobile
+                          case 'iteration':
+                          case 'thinking':
+                          case 'reasoning_start':
+                          case 'tool_prep':
+                          case 'tool_ready':
+                          case 'executing':
+                          case 'tool_stream':
+                          case 'reasoning_done':
+                          case 'continue':
+                          case 'keepalive':
+                          case 'tool_input':
+                            continue;
+                            
+                          default:
+                            continue;
+                        }
+                      } else {
+                        // Desktop - show more detail
+                        switch (data.type) {
+                          case 'thought_stream':
+                            messageToAdd = data.message;
+                            break;
+                            
+                          case 'iteration':
+                            messageToAdd = `\n**${data.message}**\n`;
+                            break;
+                            
+                          case 'thinking':
+                          case 'reasoning_start':
+                            messageToAdd = `\n*${data.message}*\n`;
+                            break;
+                            
+                          case 'tool_prep':
+                          case 'tool_ready':
+                          case 'executing':
+                            messageToAdd = `\n${data.message}\n`;
+                            break;
+                            
+                          case 'tool_result':
+                          case 'tool_stream':
+                            messageToAdd = `\n${data.message}\n`;
+                            break;
+                            
+                          case 'final':
+                            messageToAdd = `\n**${data.message}**`;
+                            break;
+                            
+                          case 'reasoning_done':
+                          case 'continue':
+                            messageToAdd = `\n*${data.message}*\n`;
+                            break;
+                            
+                          case 'keepalive':
+                          case 'tool_input':
+                            continue;
+                            
+                          default:
+                            messageToAdd = `\n*${data.message}`;
+                        }
                       }
                       
                       if (messageToAdd) {
@@ -315,17 +442,29 @@ const Dashboard = () => {
                         const hasCompleteThought = data.type === 'thought_stream' && (/[.!?]\s*$/.test(messageToAdd) || messageToAdd.length > 10);
                         const enoughTimeElapsed = now - lastUpdateTime >= UPDATE_INTERVAL;
                         
-                        // For thought_stream, be more conservative about updates to avoid showing fragments
-                        if (data.type === 'thought_stream') {
-                          // Only update if we have a complete sentence, enough text, or enough time has passed
-                          if (hasCompleteThought || enoughTimeElapsed) {
+                        // Mobile-optimized update frequency
+                        if (isMobile) {
+                          // Less frequent updates on mobile for cleaner experience
+                          if (data.type === 'thought_stream') {
+                            if (hasCompleteThought || now - lastUpdateTime >= 500) {
+                              updateMessage(accumulatedText);
+                              lastUpdateTime = now;
+                            }
+                          } else if (isImportantMessage) {
                             updateMessage(accumulatedText);
                             lastUpdateTime = now;
                           }
-                        } else if (isImportantMessage || enoughTimeElapsed) {
-                          // For other message types, update more readily
-                          updateMessage(accumulatedText);
-                          lastUpdateTime = now;
+                        } else {
+                          // Desktop - normal frequency
+                          if (data.type === 'thought_stream') {
+                            if (hasCompleteThought || enoughTimeElapsed) {
+                              updateMessage(accumulatedText);
+                              lastUpdateTime = now;
+                            }
+                          } else if (isImportantMessage || enoughTimeElapsed) {
+                            updateMessage(accumulatedText);
+                            lastUpdateTime = now;
+                          }
                         }
                       }
                     }
@@ -399,12 +538,14 @@ const Dashboard = () => {
     if (!isDragging) return;
     
     const containerWidth = window.innerWidth;
+    const minWidth = containerWidth * 0.15; // 15% minimum
+    const maxWidth = containerWidth * 0.6;  // 60% maximum
     
     if (isDragging === 'left') {
-      const newWidth = Math.max(200, Math.min(600, e.clientX));
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, e.clientX));
       setLeftPanelWidth(newWidth);
     } else if (isDragging === 'right') {
-      const newWidth = Math.max(200, Math.min(600, containerWidth - e.clientX));
+      const newWidth = Math.max(minWidth, Math.min(maxWidth, containerWidth - e.clientX));
       setChatPanelWidth(newWidth);
     }
   };
@@ -433,8 +574,19 @@ const Dashboard = () => {
   return (
     <div className="h-screen bg-gray-900 text-white flex flex-col">
       {/* Header */}
-      <header className="bg-gray-800 px-6 py-4 flex justify-between items-center border-b border-gray-700">
-        <div className="flex gap-2">
+      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700">
+        {/* Mobile Menu Button */}
+        {isMobile && (
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 hover:bg-gray-700 rounded-lg transition-colors"
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        )}
+        
+        {/* Tab Navigation - Hidden on mobile, shown in sidebar */}
+        <div className={`${isMobile ? 'hidden' : 'flex'} gap-2`}>
           {['flows', 'agents'].map((t) => (
             <button
               key={t}
@@ -442,10 +594,11 @@ const Dashboard = () => {
                 setActiveTab(t as any);
                 setSelectedItem(null);
                 setSelectedNode(null);
+                setIsMobileMenuOpen(false);
               }}
               className={`
-                group relative px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 
-                flex items-center gap-2 overflow-hidden
+                group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
+                flex items-center gap-1 md:gap-2 overflow-hidden
                 ${activeTab === t 
                   ? t === 'flows'
                     ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
@@ -457,11 +610,11 @@ const Dashboard = () => {
               `}
             >
               {t === 'flows' ? (
-                <Network size={18} className={`transition-transform duration-300 ${
+                <Network size={16} className={`transition-transform duration-300 ${
                   activeTab === t ? 'text-white' : 'text-emerald-400 group-hover:text-emerald-300'
                 }`} />
               ) : (
-                <Bot size={18} className={`transition-transform duration-300 ${
+                <Bot size={16} className={`transition-transform duration-300 ${
                   activeTab === t ? 'text-white' : 'text-purple-400 group-hover:text-purple-300'
                 }`} />
               )}
@@ -475,38 +628,130 @@ const Dashboard = () => {
         
         {/* User menu */}
         <div className="flex items-center gap-2">
-          <User size={20} />
-          <span className="text-sm text-gray-300 mr-2">
+          <User size={18} className="md:block hidden" />
+          <span className="text-xs md:text-sm text-gray-300 mr-2 hidden md:block">
             {isLoading ? 'Loading...' : String(user?.name || user?.nickname || user?.given_name || user?.email || 'User')}
           </span>
           {user && (
             <a
               href="/api/auth/logout"
-              className="flex items-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+              className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-xs md:text-sm"
             >
-              <LogOut size={16} />
-              Logout
+              <LogOut size={14} />
+              <span className="hidden md:inline">Logout</span>
             </a>
           )}
           {!user && !isLoading && (
             <a
               href="/api/auth/login"
-              className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-xs md:text-sm"
             >
-              <LogIn size={16} />
-              Login
+              <LogIn size={14} />
+              <span className="hidden md:inline">Login</span>
             </a>
           )}
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar - Flows/Agents List */}
+      {/* Mobile Navigation Sidebar */}
+      {(isMobile || isTablet) && isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="flex-1 bg-black/50"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+          
+          {/* Sidebar */}
+          <div className={`bg-gray-800 shadow-lg flex flex-col ${
+            orientation === 'landscape' && isMobile ? 'w-80' : 'w-64'
+          }`}>
+            <div className="p-4 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white">Navigation</h2>
+                <div className="text-xs text-gray-400">
+                  {deviceType} • {orientation}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1 p-4 space-y-2">
+              {['flows', 'agents'].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => {
+                    setActiveTab(t as any);
+                    setSelectedItem(null);
+                    setSelectedNode(null);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300
+                    ${activeTab === t 
+                      ? t === 'flows'
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg'
+                        : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
+                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
+                    }
+                  `}
+                >
+                  {t === 'flows' ? (
+                    <Network size={18} className={activeTab === t ? 'text-white' : 'text-emerald-400'} />
+                  ) : (
+                    <Bot size={18} className={activeTab === t ? 'text-white' : 'text-purple-400'} />
+                  )}
+                  {formatName(t.charAt(0).toUpperCase() + t.slice(1))}
+                </button>
+              ))}
+              
+              {/* Mobile View Controls */}
+              <div className="pt-4 border-t border-gray-700 space-y-2">
+                <h3 className="text-sm font-semibold text-gray-400">VIEW</h3>
+                <button
+                  onClick={() => {
+                    setMaximizedSection('left');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                >
+                  <Search size={16} />
+                  Browse {formatName(activeTab)}
+                </button>
+                <button
+                  onClick={() => {
+                    setMaximizedSection('graph');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                >
+                  <Network size={16} />
+                  View Graph
+                </button>
+                <button
+                  onClick={() => {
+                    setMaximizedSection('chat');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                >
+                  <MessageCircle size={16} />
+                  AI Chat
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+
+      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
+        {/* Left Sidebar - Flows/Agents List - Hidden on mobile unless maximized */}
         <div className={`${
+          isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
           maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
         } border-r border-gray-700 flex flex-col relative`}
-        style={maximizedSection === 'left' ? {} : { 
+        style={maximizedSection === 'left' || isMobile ? {} : { 
           width: `${leftPanelWidth}px`,
           minWidth: `${leftPanelWidth}px`,
           maxWidth: `${leftPanelWidth}px`
@@ -670,7 +915,7 @@ const Dashboard = () => {
           </div>
 
           {/* Resize Handle */}
-          {maximizedSection === 'none' && (
+          {maximizedSection === 'none' && !isMobile && (
             <div
               className="absolute top-0 right-0 w-1 h-full cursor-col-resize bg-gray-600 hover:bg-gray-500 transition-colors"
               onMouseDown={handleMouseDown('left')}
@@ -678,30 +923,63 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Center - Graph View */}
+        {/* Mobile Header Info */}
+        {isMobile && selectedItem && (
+          <div className="bg-gray-800 border-b border-gray-700 p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {activeTab === 'flows' ? (
+                <Network size={16} className="text-green-400" />
+              ) : (
+                <Bot size={16} className="text-purple-400" />
+              )}
+              <div>
+                <h3 className="text-sm font-semibold text-white">{formatName(String(selectedItem?.name || ''))}</h3>
+                <p className="text-xs text-gray-400 line-clamp-1">{String(selectedItem?.description || '')}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setMaximizedSection('left')}
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+              title="Browse all items"
+            >
+              <Search size={16} className="text-gray-400" />
+            </button>
+          </div>
+        )}
+
+        {/* Center - Graph View - Always visible on mobile top */}
         <div className={`${
+          isMobile ? 'flex-1 order-1' :
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
-        } bg-gray-900 flex flex-col relative`}>
+        } bg-gray-900 flex flex-col relative ${
+          isMobile ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
+        }`}>
           {/* Graph Control Buttons */}
-          <div className="absolute top-2 right-2 z-20 flex gap-2">
+          <div className={`absolute top-2 right-2 z-20 flex gap-2 ${
+            isMobile ? 'gap-1' : 'gap-2'
+          }`}>
             {/* Fit Button */}
             <button
               onClick={() => graphRef.current?.fitView()}
-              className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2"
+              className={`bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2 ${
+                isMobile ? 'p-1.5' : 'p-2'
+              }`}
               title="Fit Graph to View"
             >
-              <Maximize size={16} />
+              <Maximize size={isMobile ? 14 : 16} />
             </button>
             
-            {/* Maximize Button */}
-            <button
-              onClick={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
-              className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors"
-              title={maximizedSection === 'graph' ? 'Restore' : 'Maximize Graph'}
-            >
-              {maximizedSection === 'graph' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-            </button>
+            {/* Maximize Button - Hide on mobile */}
+            {!isMobile && (
+              <button
+                onClick={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
+                className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors"
+                title={maximizedSection === 'graph' ? 'Restore' : 'Maximize Graph'}
+              >
+                {maximizedSection === 'graph' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            )}
           </div>
 
           <div className="flex-1 w-full">
@@ -711,14 +989,23 @@ const Dashboard = () => {
               onNodeSelect={(node) => setSelectedNode(node)}
             />
           </div>
+          
+          {/* Mobile Vertical Resize Handle */}
+          {isMobile && (
+            <div className="h-1 w-full bg-gray-600 hover:bg-gray-500 cursor-row-resize transition-colors" />
+          )}
         </div>
 
-        {/* Right Sidebar - Chat */}
+        {/* Right Sidebar - Chat - Bottom on mobile */}
         <div className={`${
+          isMobile ? 'order-2 border-t' :
           maximizedSection === 'left' || maximizedSection === 'graph' ? 'hidden' : 
           maximizedSection === 'chat' ? 'flex-1' : ''
-        } border-l border-gray-700 flex flex-col bg-white/5 backdrop-blur-sm relative`}
-        style={maximizedSection === 'chat' ? {} : { 
+        } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
+          isMobile ? 'w-full' : ''
+        }`}
+        style={maximizedSection === 'chat' || isMobile ? 
+          (isMobile ? { height: orientation === 'landscape' ? '200px' : '300px' } : {}) : { 
           width: `${chatPanelWidth}px`,
           minWidth: `${chatPanelWidth}px`,
           maxWidth: `${chatPanelWidth}px`
@@ -764,24 +1051,31 @@ const Dashboard = () => {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className={`flex-1 overflow-y-auto space-y-4 ${
+            isMobile ? 'p-2' : 'p-4'
+          } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''}`}>
             {messages.map((message) => (
               <div
                 key={String(message.id || Math.random())}
-                className={`flex gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex gap-2 md:gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {message.sender === 'assistant' && (
-                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot size={16} className="text-white" />
+                  <div className={`bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  }`}>
+                    <Bot size={isMobile ? 12 : 16} className="text-white" />
                   </div>
                 )}
                 
                 <div
-                  className={`max-w-lg px-4 py-3 rounded-2xl text-sm shadow-lg ${
+                  className={`px-3 md:px-4 py-2 md:py-3 rounded-2xl text-xs md:text-sm shadow-lg ${
+                    isMobile ? 'max-w-[85%]' : 'max-w-lg'
+                  } ${
                     message.sender === 'user'
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
                       : 'bg-white/10 backdrop-blur-sm text-gray-100 border border-white/20'
                   }`}
+                  style={{ touchAction: 'manipulation' }}
                 >
                   <div className="whitespace-pre-wrap break-words">
                     <div className={`prose ${message.sender === 'user' ? 'prose-invert' : 'prose-gray'} max-w-none`}>
@@ -823,8 +1117,10 @@ const Dashboard = () => {
                 </div>
                 
                 {message.sender === 'user' && (
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User size={16} className="text-white" />
+                  <div className={`bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isMobile ? 'w-6 h-6' : 'w-8 h-8'
+                  }`}>
+                    <User size={isMobile ? 12 : 16} className="text-white" />
                   </div>
                 )}
               </div>
@@ -833,29 +1129,61 @@ const Dashboard = () => {
           </div>
 
           {/* Chat Input */}
-          <div className="p-4 border-t border-white/10">
+          <div className={`border-t border-white/10 ${
+            isMobile ? 'p-2' : 'p-4'
+          }`}>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Ask me anything..."
+                placeholder={isMobile ? "Ask me..." : "Ask me anything..."}
                 disabled={isStreaming}
-                className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 backdrop-blur-sm placeholder-gray-400 disabled:opacity-50"
+                className={`flex-1 bg-white/10 border border-white/20 rounded-xl px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 backdrop-blur-sm placeholder-gray-400 disabled:opacity-50 ${
+                  isMobile ? 'min-h-[44px]' : ''
+                }`}
+                style={{ touchAction: 'manipulation', fontSize: isMobile ? '16px' : undefined }}
               />
               <button
                 onClick={sendMessage}
                 disabled={isStreaming || !chatInput.trim()}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 px-4 py-3 rounded-xl transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isMobile ? 'px-3 py-2 min-w-[44px] min-h-[44px]' : 'px-4 py-3'
+                }`}
+                style={{ touchAction: 'manipulation' }}
               >
-                <Send size={16} />
+                <Send size={isMobile ? 14 : 16} />
               </button>
             </div>
+            
+            {/* Mobile-specific quick actions */}
+            {isMobile && (
+              <div className="mt-2 flex gap-2 overflow-x-auto">
+                <button
+                  onClick={() => setChatInput('Help me create a new flow')}
+                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
+                >
+                  Create Flow
+                </button>
+                <button
+                  onClick={() => setChatInput('Show me available agents')}
+                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
+                >
+                  List Agents
+                </button>
+                <button
+                  onClick={() => setChatInput('Explain how this works')}
+                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
+                >
+                  How it works
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Resize Handle */}
-          {maximizedSection === 'none' && (
+          {maximizedSection === 'none' && !isMobile && (
             <div
               className="absolute top-0 left-0 w-1 h-full cursor-col-resize bg-gray-600 hover:bg-gray-500 transition-colors"
               onMouseDown={handleMouseDown('right')}
