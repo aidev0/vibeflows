@@ -217,14 +217,14 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
                         const existingKey = keys.find(k => k._id === selected);
                         if (existingKey) {
                           // Load existing key with its actual value
-                          const value = existingKey.key_value || existingKey.value || '';
+                          const value = existingKey.key_value || '';
                           const stringValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
                           
                           setFormData({
-                            key_name: existingKey.key_name || existingKey.name || '',
+                            key_name: existingKey.key_name || '',
                             key_value: stringValue,
                             description: existingKey.description || '',
-                            key_type: existingKey.key_type || existingKey.type || 'api_key'
+                            key_type: existingKey.key_type || 'api_key'
                           });
                           setEditingKey(existingKey._id || '');
                           setShowFormKeyValue(false); // Hide value by default
