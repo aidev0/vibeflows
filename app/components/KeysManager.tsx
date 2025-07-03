@@ -139,6 +139,7 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
       key_type: key.key_type || key.type || 'api_key'
     });
     setEditingKey(key._id || '');
+    setSelectedPredefined(key._id || ''); // Set dropdown to show the selected key
     setShowAddForm(true); // Show the form
     setShowFormKeyValue(false); // Hide value by default when editing
   };
