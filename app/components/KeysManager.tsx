@@ -420,7 +420,7 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
                       <div className="flex items-start gap-2 mb-2 min-w-0">
                         <code className="bg-gray-800 px-2 py-1 rounded text-sm font-mono text-gray-300 flex-1 min-w-0 overflow-hidden break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
                           {(() => {
-                            const value = key.key_value || key.value;
+                            const value = key.key_value;
                             if (!value) return 'No value';
                             
                             if (visibleKeys.has(key._id || '')) {
