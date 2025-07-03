@@ -73,8 +73,8 @@ const Dashboard = () => {
   const [currentChat, setCurrentChat] = useState<any>(null);
   const [messages, setMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'assistant', timestamp: Date}>>([]);
   const [chatInput, setChatInput] = useState('');
-  const [leftPanelWidth, setLeftPanelWidth] = useState(window.innerWidth * 0.2);
-  const [chatPanelWidth, setChatPanelWidth] = useState(window.innerWidth * 0.4);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(300); // Default width
+  const [chatPanelWidth, setChatPanelWidth] = useState(400); // Default width
   const [isDragging, setIsDragging] = useState<'left' | 'right' | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -88,9 +88,15 @@ const Dashboard = () => {
   // Enhanced device detection with orientation support
   useEffect(() => {
     const detectDevice = () => {
+      if (typeof window === 'undefined') return;
+      
       const width = window.innerWidth;
       const height = window.innerHeight;
       const userAgent = navigator.userAgent;
+      
+      // Initialize panel widths based on actual window size
+      setLeftPanelWidth(width * 0.2);
+      setChatPanelWidth(width * 0.4);
       
       // Detect device type
       const isMobileDevice = width < 768;
@@ -98,7 +104,7 @@ const Dashboard = () => {
       const isDesktopDevice = width >= 1024;
       
       // More sophisticated mobile detection
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
       const isMobileUserAgent = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
       
       // Determine orientation
@@ -138,27 +144,37 @@ const Dashboard = () => {
       setTimeout(detectDevice, 100);
     };
     
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', handleOrientationChange);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('orientationchange', handleOrientationChange);
+    }
     
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('orientationchange', handleOrientationChange);
+      }
     };
   }, []);
 
   // Update panel widths on window resize to maintain proportions
   useEffect(() => {
     const handleResize = () => {
-      if (!isMobile) {
+      if (!isMobile && typeof window !== 'undefined') {
         const newWidth = window.innerWidth;
         setLeftPanelWidth(newWidth * 0.2);
         setChatPanelWidth(newWidth * 0.4);
       }
     };
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', handleResize);
+      }
+    };
   }, [isMobile]);
 
   // Debug logging
@@ -411,7 +427,7 @@ const Dashboard = () => {
         
         // Set n8n mode layout: hide left panel, 70% graph, 30% chat
         setMaximizedSection('none');
-        if (!isMobile) {
+        if (!isMobile && typeof window !== 'undefined') {
           setLeftPanelWidth(0); // Hide left panel completely
           setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
         }
@@ -689,7 +705,7 @@ const Dashboard = () => {
   };
 
   const handleMouseMove = (e: MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging || typeof window === 'undefined') return;
     
     const containerWidth = window.innerWidth;
     const minWidth = containerWidth * 0.15; // 15% minimum
@@ -710,7 +726,7 @@ const Dashboard = () => {
 
   // Add global mouse event listeners
   useEffect(() => {
-    if (isDragging) {
+    if (isDragging && typeof document !== 'undefined') {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = 'col-resize';
@@ -1128,9 +1144,9 @@ const Dashboard = () => {
           isMobile ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
         }`}
         style={showN8nWorkflow && !isMobile ? { 
-          width: `${window.innerWidth * 0.7}px`,
-          minWidth: `${window.innerWidth * 0.7}px`,
-          maxWidth: `${window.innerWidth * 0.7}px`
+          width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
+          minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
+          maxWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`
         } : {}}>
           
           {/* Graph Header - Mobile only for regular flows */}
@@ -1206,7 +1222,7 @@ const Dashboard = () => {
                   setShowN8nWorkflow(false);
                   setN8nWorkflow(null);
                   // Restore original layout
-                  if (!isMobile) {
+                  if (!isMobile && typeof window !== 'undefined') {
                     setLeftPanelWidth(window.innerWidth * 0.2);
                     setChatPanelWidth(window.innerWidth * 0.4);
                   }
@@ -1239,9 +1255,9 @@ const Dashboard = () => {
         style={maximizedSection === 'chat' || isMobile ? 
           (isMobile ? { height: orientation === 'landscape' ? '200px' : '300px' } : {}) : 
           showN8nWorkflow && !isMobile ? {
-            width: `${window.innerWidth * 0.3}px`,
-            minWidth: `${window.innerWidth * 0.3}px`,
-            maxWidth: `${window.innerWidth * 0.3}px`
+            width: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
+            minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
+            maxWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`
           } : { 
             width: `${chatPanelWidth}px`,
             minWidth: `${chatPanelWidth}px`,
