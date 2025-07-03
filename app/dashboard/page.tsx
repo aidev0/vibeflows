@@ -964,7 +964,7 @@ const Dashboard = () => {
       <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
         {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
-          isMobile ? (maximizedSection === 'left' ? 'fixed inset-0 z-40 bg-gray-900' : 'hidden') :
+          isMobile ? (maximizedSection === 'left' ? 'fixed top-0 left-0 w-full h-full z-40 bg-gray-600' : 'hidden') :
           showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
         } ${isMobile && maximizedSection === 'left' ? '' : 'border-r border-gray-700'} flex flex-col`}
@@ -977,16 +977,21 @@ const Dashboard = () => {
           <div 
             className={`${
               isMobile && maximizedSection === 'left' 
-                ? 'bg-gray-900 h-screen w-full flex flex-col' 
+                ? 'bg-gray-500 w-full flex flex-col' 
                 : 'bg-gray-800 border-r border-gray-700 overflow-y-auto'
             } transition-all duration-300 ${
-              maximizedSection === 'left' ? 'w-full' : 
+              maximizedSection === 'left' ? 'w-full h-full' : 
               maximizedSection !== 'none' ? 'w-0 opacity-0' : ''
             }`}
-            style={{ width: maximizedSection === 'none' ? `${leftPanelWidth}px` : undefined }}
+            style={{ 
+              width: maximizedSection === 'none' ? `${leftPanelWidth}px` : undefined,
+              height: isMobile && maximizedSection === 'left' ? '100%' : undefined
+            }}
           >
             {/* Left Panel Header */}
-            <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
+            <div className={`p-4 border-b flex items-center justify-between flex-shrink-0 ${
+              isMobile && maximizedSection === 'left' ? 'border-gray-400 bg-gray-400' : 'border-gray-700'
+            }`}>
               <div className="flex items-center gap-2">
                 {isMobile && maximizedSection === 'left' && (
                   <button
@@ -994,10 +999,12 @@ const Dashboard = () => {
                     className="p-1 hover:bg-gray-600 rounded transition-colors"
                     title="Back to dashboard"
                   >
-                    <X size={16} className="text-gray-300" />
+                    <X size={16} className="text-gray-900" />
                   </button>
                 )}
-                <h2 className="font-semibold text-white">
+                <h2 className={`font-semibold ${
+                  isMobile && maximizedSection === 'left' ? 'text-gray-900' : 'text-white'
+                }`}>
                   {selectedNode ? 'Node Details' : 
                    isMobile && maximizedSection === 'left' ? `Choose ${formatName(activeTab)}` :
                    formatName(activeTab)}
@@ -1115,7 +1122,11 @@ const Dashboard = () => {
                     placeholder={`Search ${activeTab}...`}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+                    className={`w-full border rounded px-3 py-2 text-sm focus:outline-none focus:border-blue-500 ${
+                      isMobile && maximizedSection === 'left' 
+                        ? 'bg-gray-200 border-gray-400 text-gray-900 placeholder-gray-600' 
+                        : 'bg-gray-700 border-gray-600 text-white'
+                    }`}
                   />
                 </div>
 
@@ -1131,8 +1142,7 @@ const Dashboard = () => {
                         : 'flex-1 overflow-y-auto px-4 pb-4'
                     }`}
                     style={{ 
-                      WebkitOverflowScrolling: 'touch',
-                      height: isMobile && maximizedSection === 'left' ? 'calc(100vh - 140px)' : undefined
+                      WebkitOverflowScrolling: 'touch'
                     }}
                   >
                     <div className="space-y-2">
@@ -1149,18 +1159,26 @@ const Dashboard = () => {
                         className={`p-3 rounded cursor-pointer transition-colors ${
                           selectedItem && getItemId(selectedItem) === getItemId(item)
                             ? 'bg-blue-600 text-white'
-                            : 'bg-gray-700 hover:bg-gray-600'
+                            : isMobile && maximizedSection === 'left' 
+                              ? 'bg-gray-300 hover:bg-gray-200 text-gray-900'
+                              : 'bg-gray-700 hover:bg-gray-600 text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           {activeTab === 'flows' ? (
-                            <Network size={16} className="text-green-400" />
+                            <Network size={16} className={
+                              isMobile && maximizedSection === 'left' ? 'text-green-700' : 'text-green-400'
+                            } />
                           ) : (
-                            <Bot size={16} className="text-purple-400" />
+                            <Bot size={16} className={
+                              isMobile && maximizedSection === 'left' ? 'text-purple-700' : 'text-purple-400'
+                            } />
                           )}
                           <span className="font-medium text-sm">{formatName(String(item?.name || ''))}</span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">{String(item?.description || '')}</p>
+                        <p className={`text-xs mt-1 ${
+                          isMobile && maximizedSection === 'left' ? 'text-gray-700' : 'text-gray-400'
+                        }`}>{String(item?.description || '')}</p>
                       </div>
                     ))}
                     </div>
