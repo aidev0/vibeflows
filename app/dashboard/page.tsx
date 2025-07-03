@@ -1102,8 +1102,8 @@ const Dashboard = () => {
               </div>
             ) : (
               // Original flow/agent list
-              <div className="p-4">
-                <div className="mb-4">
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="p-4 flex-shrink-0">
                   <input
                     type="text"
                     placeholder={`Search ${activeTab}...`}
@@ -1118,7 +1118,8 @@ const Dashboard = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex-1 overflow-y-auto px-4 pb-4">
+                    <div className="space-y-2">
                     {filtered.map((item) => (
                       <div
                         key={getItemId(item)}
@@ -1146,6 +1147,7 @@ const Dashboard = () => {
                         <p className="text-xs text-gray-400 mt-1">{String(item?.description || '')}</p>
                       </div>
                     ))}
+                    </div>
                   </div>
                 )}
               </div>
