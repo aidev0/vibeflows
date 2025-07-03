@@ -1437,7 +1437,9 @@ const Dashboard = () => {
           {/* Messages */}
           <div className={`flex-1 overflow-y-auto space-y-4 ${
             isMobile ? 'p-2' : 'p-4'
-          } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''}`}>
+          } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''} ${
+            isMobile && maximizedSection === 'chat' ? 'pb-20' : ''
+          }`}>
             {messages.map((message) => (
               <div
                 key={String(message.id || Math.random())}
@@ -1552,7 +1554,7 @@ const Dashboard = () => {
           {/* Chat Input */}
           <div className={`border-t border-white/10 flex-shrink-0 ${
             isMobile ? 'p-2' : 'p-4'
-          } ${isMobile && maximizedSection === 'chat' ? 'sticky bottom-0 bg-gray-900/95 backdrop-blur-sm' : ''}`}>
+          } ${isMobile && maximizedSection === 'chat' ? 'fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm z-50' : ''}`}>
             <div className="flex gap-2">
               <input
                 type="text"
