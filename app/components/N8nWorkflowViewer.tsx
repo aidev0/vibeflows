@@ -14,6 +14,7 @@ import {
   Edge,
   useReactFlow,
   ReactFlowProvider,
+  MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -119,7 +120,7 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
               strokeWidth: 2,
             },
             markerEnd: {
-              type: 'arrowclosed',
+              type: MarkerType.ArrowClosed,
               color: '#64748b',
             },
           });
