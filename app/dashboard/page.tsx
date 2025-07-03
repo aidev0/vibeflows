@@ -396,9 +396,8 @@ const Dashboard = () => {
           setLeftPanelWidth(0); // Hide left panel
           setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
         }
-      } else {
-        alert('No n8n workflows found in database. Please import some workflows first.');
       }
+      // If no workflows found, do nothing - don't show anything
     } catch (error) {
       console.error('Error loading n8n workflows:', error);
       alert(`Error loading n8n workflows: ${error.message}`);
