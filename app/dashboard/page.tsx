@@ -819,6 +819,13 @@ const Dashboard = () => {
             z-index: 999999 !important;
             position: relative;
           }
+          
+          /* Ensure chat input is always visible above Chrome buttons */
+          .mobile-chat-input {
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 80px) !important;
+            margin-bottom: env(safe-area-inset-bottom, 80px);
+            padding-bottom: 20px;
+          }
         `}</style>
       )}
       <div 
@@ -1438,7 +1445,7 @@ const Dashboard = () => {
           <div className={`flex-1 overflow-y-auto space-y-4 ${
             isMobile ? 'p-2' : 'p-4'
           } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''} ${
-            isMobile && maximizedSection === 'chat' ? 'pb-20' : ''
+            isMobile && maximizedSection === 'chat' ? 'pb-32' : ''
           }`}>
             {messages.map((message) => (
               <div
@@ -1522,7 +1529,7 @@ const Dashboard = () => {
           </div>
 
           {/* Mobile Chat Controls */}
-          {isMobile && (
+          {isMobile && maximizedSection !== 'chat' && (
             <div className="absolute top-2 right-2 z-10 flex gap-2">
               {/* New Chat Button */}
               <button
@@ -1554,7 +1561,29 @@ const Dashboard = () => {
           {/* Chat Input */}
           <div className={`border-t border-white/10 flex-shrink-0 ${
             isMobile ? 'p-2' : 'p-4'
-          } ${isMobile && maximizedSection === 'chat' ? 'fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm z-50' : ''}`}>
+          } ${isMobile && maximizedSection === 'chat' ? 'fixed left-0 right-0 bg-gray-900/95 backdrop-blur-sm z-50 mobile-chat-input' : ''}`}
+          style={isMobile && maximizedSection === 'chat' ? {
+            bottom: 'max(env(safe-area-inset-bottom, 80px), 80px)'
+          } : {}}>
+            {/* Mobile Chat Controls when maximized */}
+            {isMobile && maximizedSection === 'chat' && (
+              <div className="flex justify-end gap-2 mb-2">
+                <button
+                  onClick={() => createNewChat()}
+                  className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/80 hover:bg-blue-700/90 shadow-lg"
+                  title="Start new chat"
+                >
+                  <Plus size={12} className="text-white" />
+                </button>
+                <button
+                  onClick={() => setMaximizedSection('none')}
+                  className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-purple-500 hover:bg-purple-600 shadow-lg"
+                  title="Restore chat"
+                >
+                  <Minimize2 size={12} className="text-white" />
+                </button>
+              </div>
+            )}
             <div className="flex gap-2">
               <input
                 type="text"
