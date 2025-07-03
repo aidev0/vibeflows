@@ -17,12 +17,13 @@ export async function GET(request: Request) {
     
     switch (action) {
       case 'db_workflows':
-        // Get workflows from database (n8n_workflows collection)
-        const dbWorkflows = await db.collection('n8n_workflows')
-          .find({ user_id: session.user.sub })
-          .sort({ created_at: -1 })
-          .toArray();
-        return NextResponse.json({ data: dbWorkflows });
+        // Get latest workflow from database (n8n_workflows collection)
+        const latestWorkflow = await db.collection('n8n_workflows')
+          .findOne(
+            { user_id: session.user.sub },
+            { sort: { created_at: -1 } }
+          );
+        return NextResponse.json({ data: latestWorkflow ? [latestWorkflow] : [] });
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
