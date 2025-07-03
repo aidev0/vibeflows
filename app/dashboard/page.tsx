@@ -222,7 +222,7 @@ const Dashboard = () => {
         // Auto-select latest item with flow_id, or first item for mobile
         if (data && data.length > 0) {
           // Find the latest item with flow_id (nodes/edges data)
-          const itemWithGraph = data.find(item => 
+          const itemWithGraph = data.find((item: any) => 
             item.flow_id || 
             (item.nodes && item.nodes.length > 0) || 
             (item.functions && item.functions.length > 0)
@@ -262,7 +262,7 @@ const Dashboard = () => {
         setSessionId(newSessionId);
 
         // Load latest chat for this user_id
-        const chats = await API.getChats(user.sub);
+        const chats = await API.getChats(user.sub || '');
         
         if (chats && chats.length > 0) {
           // Load the most recent chat for this user
@@ -420,14 +420,14 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error loading n8n workflows:', error);
       console.error('Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+        name: (error as Error).name
       });
       // Show user-friendly error message
-      const errorMessage = error.message.includes('HTML') || error.message.includes('<!DOCTYPE') 
+      const errorMessage = (error as Error).message.includes('HTML') || (error as Error).message.includes('<!DOCTYPE') 
         ? 'Authentication error - please refresh the page and try again'
-        : error.message;
+        : (error as Error).message;
       
       alert(`Error loading n8n workflows: ${errorMessage}`);
     } finally {

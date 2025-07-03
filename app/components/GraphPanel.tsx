@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Network, GitBranch, Bot } from 'lucide-react';
 import Graph from './graph';
 
@@ -10,7 +10,7 @@ interface GraphPanelProps {
   onNodeSelect: (node: any) => void;
 }
 
-const GraphPanel: React.FC<GraphPanelProps> = ({ selectedItem, selectedNode, onNodeSelect }) => {
+const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selectedItem, selectedNode, onNodeSelect }, ref) => {
   // Helper function to format names
   const formatName = (name: string) => {
     if (!name) return '';
@@ -220,6 +220,7 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ selectedItem, selectedNode, onN
       {/* Graph component - only render if there's valid data */}
       {selectedItem && graphData.nodes.length > 0 && (
         <Graph
+          ref={ref}
           data={graphData}
           selectedNode={selectedNode}
           onNodeClick={onNodeSelect}
@@ -232,6 +233,8 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ selectedItem, selectedNode, onN
       )}
     </div>
   );
-};
+});
+
+GraphPanel.displayName = 'GraphPanel';
 
 export default GraphPanel;
