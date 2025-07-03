@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     //   .sort({ created_at: -1 })
     //   .toArray();
 
-    const userSessions = []; // Placeholder
+    const userSessions: any[] = []; // Placeholder
 
     return NextResponse.json({ sessions: userSessions });
 
