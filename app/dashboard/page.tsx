@@ -362,11 +362,17 @@ const Dashboard = () => {
       
       // Get workflows from database (n8n_workflows collection)
       const workflowsResponse = await fetch('/api/n8n?action=db_workflows');
-      const workflowsResult = await workflowsResponse.json();
+      
+      console.log('Response status:', workflowsResponse.status);
+      console.log('Response headers:', Object.fromEntries(workflowsResponse.headers.entries()));
       
       if (!workflowsResponse.ok) {
-        throw new Error(workflowsResult.error || 'Failed to fetch workflows from database');
+        const responseText = await workflowsResponse.text();
+        console.log('Error response text:', responseText);
+        throw new Error(`HTTP ${workflowsResponse.status}: ${responseText}`);
       }
+      
+      const workflowsResult = await workflowsResponse.json();
       
       console.log('Database n8n workflows:', workflowsResult);
       
@@ -375,25 +381,19 @@ const Dashboard = () => {
         const latestWorkflow = workflowsResult.data[0];
         console.log('Selected latest workflow:', latestWorkflow);
         
-        // Structure the workflow data for our viewer
-        const structuredWorkflow = {
-          id: latestWorkflow.id || latestWorkflow._id,
+        // Use the workflow_json directly - it contains nodes and connections
+        const workflowData = {
           name: latestWorkflow.name,
-          workflow_json: latestWorkflow,
-          nodes: latestWorkflow.nodes || [],
-          connections: latestWorkflow.connections || {},
-          active: latestWorkflow.active,
-          created_at: latestWorkflow.createdAt || latestWorkflow.created_at,
-          updated_at: latestWorkflow.updatedAt || latestWorkflow.updated_at
+          workflow_json: latestWorkflow.workflow_json
         };
         
-        setN8nWorkflow(structuredWorkflow);
+        setN8nWorkflow(workflowData);
         setShowN8nWorkflow(true);
         
-        // Set n8n mode layout: hide left panel, show graph (70%) and chat (30%)
+        // Set n8n mode layout: hide left panel, 70% graph, 30% chat
         setMaximizedSection('none');
         if (!isMobile) {
-          setLeftPanelWidth(0); // Hide left panel
+          setLeftPanelWidth(0); // Hide left panel completely
           setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
         }
       }
@@ -738,7 +738,7 @@ const Dashboard = () => {
                     : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg shadow-purple-500/30 scale-105'
                   : t === 'flows'
                     ? 'bg-gray-700/50 text-gray-300 hover:bg-emerald-600/20 hover:text-emerald-300 hover:scale-102 border border-emerald-500/20'
-                    : 'bg-gray-700/50 text-gray-300 hover:bg-purple-600/20 hover:text-purple-300 hover:scale-102 border border-purple-500/20'
+                    : 'bg-gradient-to-r from-purple-500 to-purple-400 text-white hover:bg-gradient-to-r hover:from-purple-400 hover:to-purple-300 hover:text-white hover:scale-105 border-2 border-purple-400 hover:border-purple-300 transition-all duration-300'
                 }
               `}
             >
@@ -748,7 +748,7 @@ const Dashboard = () => {
                 }`} />
               ) : (
                 <Bot size={16} className={`transition-transform duration-300 ${
-                  activeTab === t ? 'text-white' : 'text-purple-400 group-hover:text-purple-300'
+                  activeTab === t ? 'text-white' : 'text-white'
                 }`} />
               )}
               
@@ -919,7 +919,7 @@ const Dashboard = () => {
       
 
       <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
-        {/* Left Sidebar - Flows/Agents List - Hidden on mobile unless maximized */}
+        {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
           showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
@@ -1121,14 +1121,19 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Center - Graph View - Always visible on mobile top */}
+        {/* Center - Graph View - 70% width when n8n is shown */}
         <div className={`${
           isMobile ? 'flex-1 order-1' :
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
         } bg-gray-900 flex flex-col relative ${
           isMobile ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
-        }`}>
+        }`}
+        style={showN8nWorkflow && !isMobile ? { 
+          width: `${window.innerWidth * 0.7}px`,
+          minWidth: `${window.innerWidth * 0.7}px`,
+          maxWidth: `${window.innerWidth * 0.7}px`
+        } : {}}>
           {/* Graph Control Buttons */}
           <div className={`absolute top-2 right-2 z-20 flex gap-2 ${
             isMobile ? 'gap-1' : 'gap-2'
@@ -1159,6 +1164,7 @@ const Dashboard = () => {
           <div className="flex-1 w-full">
             {showN8nWorkflow && n8nWorkflow ? (
               <N8nWorkflowViewer
+                ref={graphRef}
                 workflow={n8nWorkflow}
                 onClose={() => {
                   setShowN8nWorkflow(false);
@@ -1172,6 +1178,7 @@ const Dashboard = () => {
               />
             ) : (
               <GraphPanel
+                ref={graphRef}
                 selectedItem={selectedItem}
                 selectedNode={selectedNode}
                 onNodeSelect={(node) => setSelectedNode(node)}
@@ -1185,7 +1192,7 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Right Sidebar - Chat - Bottom on mobile */}
+        {/* Right Sidebar - Chat - Always visible when n8n is shown (30% width) */}
         <div className={`${
           isMobile ? 'order-2 border-t' :
           (!showN8nWorkflow && (maximizedSection === 'left' || maximizedSection === 'graph')) ? 'hidden' : 
@@ -1194,11 +1201,16 @@ const Dashboard = () => {
           isMobile ? 'w-full' : ''
         }`}
         style={maximizedSection === 'chat' || isMobile ? 
-          (isMobile ? { height: orientation === 'landscape' ? '200px' : '300px' } : {}) : { 
-          width: `${chatPanelWidth}px`,
-          minWidth: `${chatPanelWidth}px`,
-          maxWidth: `${chatPanelWidth}px`
-        }}>
+          (isMobile ? { height: orientation === 'landscape' ? '200px' : '300px' } : {}) : 
+          showN8nWorkflow && !isMobile ? {
+            width: `${window.innerWidth * 0.3}px`,
+            minWidth: `${window.innerWidth * 0.3}px`,
+            maxWidth: `${window.innerWidth * 0.3}px`
+          } : { 
+            width: `${chatPanelWidth}px`,
+            minWidth: `${chatPanelWidth}px`,
+            maxWidth: `${chatPanelWidth}px`
+          }}>
           {/* Chat Header */}
           <div className="p-4 border-b border-white/10">
             <div className="flex items-center justify-between">
