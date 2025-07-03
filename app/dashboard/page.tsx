@@ -742,7 +742,22 @@ const Dashboard = () => {
   }, [isDragging]);
 
   return (
-    <div className="h-screen bg-gray-900 text-white flex flex-col">
+    <>
+      {isMobile && (
+        <style jsx>{`
+          .mobile-container {
+            height: 100vh;
+            height: 100dvh;
+            min-height: 100vh;
+            min-height: 100dvh;
+          }
+        `}</style>
+      )}
+      <div 
+        className={`bg-gray-900 text-white flex flex-col ${
+          isMobile ? 'mobile-container' : 'h-screen'
+        }`}
+      >
       {/* Header */}
       <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700">
         {/* Mobile Menu Button */}
@@ -1530,6 +1545,7 @@ const Dashboard = () => {
         <KeysManager onClose={() => setShowKeysManager(false)} />
       )}
     </div>
+    </>
   );
 };
 
