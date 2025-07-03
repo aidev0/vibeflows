@@ -261,7 +261,7 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
                       <optgroup label="Your Saved Keys">
                         {keys.map(key => (
                           <option key={key._id} value={key._id}>
-                            {key.key_name || key.name} ({key.key_type || key.type})
+                            {key.key_name} ({key.key_type})
                           </option>
                         ))}
                       </optgroup>
