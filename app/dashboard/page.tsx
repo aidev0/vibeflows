@@ -235,20 +235,49 @@ const Dashboard = () => {
         const data = activeTab === 'flows' ? await API.getFlows() : await API.getAgents();
         activeTab === 'flows' ? setFlows(data) : setAgents(data);
         
-        // Auto-select latest item with flow_id, or first item for mobile
+        // Auto-select latest item for current user, prioritizing items with flow_id
         if (data && data.length > 0) {
-          // Find the latest item with flow_id (nodes/edges data)
-          const itemWithGraph = data.find((item: any) => 
-            item.flow_id || 
-            (item.nodes && item.nodes.length > 0) || 
-            (item.functions && item.functions.length > 0)
-          );
+          let selectedItem = null;
           
-          if (itemWithGraph) {
-            setSelectedItem(itemWithGraph);
-          } else if (isMobile) {
-            // Fallback to first item on mobile
-            setSelectedItem(data[0]);
+          // First, try to find items for current user
+          if (user?.sub) {
+            const userItems = data.filter((item: any) => item.user_id === user.sub);
+            if (userItems.length > 0) {
+              // Sort by created_at or updated_at descending to get latest
+              const sortedUserItems = userItems.sort((a: any, b: any) => {
+                const aDate = new Date(a.updated_at || a.created_at || 0);
+                const bDate = new Date(b.updated_at || b.created_at || 0);
+                return bDate.getTime() - aDate.getTime();
+              });
+              
+              // Prefer items with flow_id (graph data)
+              const latestWithGraph = sortedUserItems.find((item: any) => 
+                item.flow_id || 
+                (item.nodes && item.nodes.length > 0) || 
+                (item.functions && item.functions.length > 0)
+              );
+              
+              selectedItem = latestWithGraph || sortedUserItems[0];
+            }
+          }
+          
+          // Fallback: find any item with graph data
+          if (!selectedItem) {
+            const itemWithGraph = data.find((item: any) => 
+              item.flow_id || 
+              (item.nodes && item.nodes.length > 0) || 
+              (item.functions && item.functions.length > 0)
+            );
+            selectedItem = itemWithGraph;
+          }
+          
+          // Final fallback: first item (especially for mobile)
+          if (!selectedItem && (isMobile || data.length > 0)) {
+            selectedItem = data[0];
+          }
+          
+          if (selectedItem) {
+            setSelectedItem(selectedItem);
           }
         }
       } catch (err) {
@@ -258,7 +287,7 @@ const Dashboard = () => {
       }
     };
     fetchData();
-  }, [activeTab, isMobile]);
+  }, [activeTab, isMobile, user?.sub]);
 
   // Initialize user session and chat
   useEffect(() => {
