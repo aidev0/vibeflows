@@ -759,7 +759,7 @@ const Dashboard = () => {
         }`}
       >
       {/* Header */}
-      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700">
+      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-50">
         {/* Mobile Menu Button */}
         {isMobile && (
           <button
@@ -976,7 +976,7 @@ const Dashboard = () => {
       )}
       
 
-      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden`}>
+      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`}>
         {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
@@ -1124,9 +1124,7 @@ const Dashboard = () => {
               </div>
             ) : (
               // Original flow/agent list
-              <div className={`${
-                isMobile && maximizedSection === 'left' ? 'flex-1 flex flex-col overflow-hidden' : 'flex-1 flex flex-col min-h-0'
-              }`}>
+              <div className="flex-1 flex flex-col min-h-0">
                 <div className="p-4 flex-shrink-0">
                   <input
                     type="text"
@@ -1143,13 +1141,10 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <div 
-                    className={`${
-                      isMobile && maximizedSection === 'left' 
-                        ? 'flex-1 overflow-y-scroll px-4 pb-4' 
-                        : 'flex-1 overflow-y-auto px-4 pb-4'
-                    }`}
+                    className="flex-1 overflow-y-auto px-4 pb-4"
                     style={{ 
-                      WebkitOverflowScrolling: 'touch'
+                      WebkitOverflowScrolling: 'touch',
+                      height: isMobile ? 'calc(100vh - 200px)' : 'auto'
                     }}
                   >
                     <div className="space-y-2">
@@ -1504,30 +1499,6 @@ const Dashboard = () => {
                 <Send size={isMobile ? 14 : 16} />
               </button>
             </div>
-            
-            {/* Mobile-specific quick actions */}
-            {isMobile && (
-              <div className="mt-2 flex gap-2 overflow-x-auto">
-                <button
-                  onClick={() => setChatInput('Help me create a new flow')}
-                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
-                >
-                  Create Flow
-                </button>
-                <button
-                  onClick={() => setChatInput('Show me available agents')}
-                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
-                >
-                  List Agents
-                </button>
-                <button
-                  onClick={() => setChatInput('Explain how this works')}
-                  className="flex-shrink-0 px-3 py-1 bg-gray-700/50 text-gray-300 rounded-full text-xs hover:bg-gray-600 transition-colors"
-                >
-                  How it works
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Resize Handle */}
