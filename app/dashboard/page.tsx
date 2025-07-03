@@ -53,15 +53,14 @@ const API = {
     });
     return response;
   },
-  sendMessage: async (chatId: string, text: string, role: 'user' | 'assistant', userId?: string) => {
+  sendMessage: async (chatId: string, text: string, role: 'user' | 'assistant') => {
     const response = await fetch('/api/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         chat_id: chatId, 
         text: text, 
-        role: role,
-        user_id: userId 
+        role: role
       }),
     });
     return response.json();
@@ -366,7 +365,7 @@ const Dashboard = () => {
           const greetingText = `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`;
           
           // Send greeting message to database
-          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant', user.sub || undefined);
+          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant');
           
           // Display greeting message in UI
           setMessages([{
