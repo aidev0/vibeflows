@@ -3,7 +3,7 @@ import { getSession } from '@auth0/nextjs-auth0';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession(request);
+    const session = await getSession();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
