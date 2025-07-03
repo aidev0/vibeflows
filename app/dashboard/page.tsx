@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
+import N8nWorkflowViewer from '../components/N8nWorkflowViewer';
+import KeysManager from '../components/KeysManager';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import { createUserSession, updateUserSession, getLatestFlowFromMessages } from '../utils/sessionManager';
 
 // API functions
 const API = {
@@ -59,7 +62,12 @@ const Dashboard = () => {
   const [agents, setAgents] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
+  const [showN8nWorkflow, setShowN8nWorkflow] = useState(false);
+  const [n8nWorkflow, setN8nWorkflow] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showKeysManager, setShowKeysManager] = useState(false);
+  const [showApiManager, setShowApiManager] = useState(false);
   const [search, setSearch] = useState('');
   const [maximizedSection, setMaximizedSection] = useState<'none' | 'left' | 'graph' | 'chat'>('none');
   const [currentChat, setCurrentChat] = useState<any>(null);
@@ -190,6 +198,19 @@ const Dashboard = () => {
       .join(' ');
   };
 
+  // Helper function to clean and format AI messages
+  const formatAIMessage = (text: string) => {
+    if (!text) return '';
+    
+    return text
+      // First, normalize all multiple line breaks to single ones
+      .replace(/\n+/g, '\n')
+      // Only allow double line breaks before major headers/sections
+      .replace(/\n\s*(#{1,3}\s|🎯|Key Components|Next Steps|Flow ID|My reasoning:)/g, '\n\n$1')
+      // Trim whitespace
+      .trim();
+  };
+
   // Load flows/agents
   useEffect(() => {
     const fetchData = async () => {
@@ -223,18 +244,38 @@ const Dashboard = () => {
     fetchData();
   }, [activeTab, isMobile]);
 
-  // Initialize or load existing chat
+  // Initialize user session and chat
   useEffect(() => {
-    const initChat = async () => {
+    const initUserSession = async () => {
+      if (!user) return;
+
       try {
-        const chats = await API.getChats();
+        // Create user session
+        const newSessionId = await createUserSession({
+          user_profile: {
+            name: user.name,
+            email: user.email,
+            nickname: user.nickname,
+            picture: user.picture
+          }
+        });
+        setSessionId(newSessionId);
+
+        // Load latest chat for this user_id
+        const chats = await API.getChats(user.sub);
+        
         if (chats && chats.length > 0) {
-          // Load the most recent chat
-          const lastChat = chats[0];
-          setCurrentChat(lastChat);
+          // Load the most recent chat for this user
+          const latestChat = chats[0];
+          setCurrentChat(latestChat);
+          
+          // Update session with latest chat_id
+          if (newSessionId) {
+            await updateUserSession(newSessionId, { chat_id: latestChat._id });
+          }
           
           // Load messages for this chat
-          const chatMessages = await API.getMessages(lastChat._id);
+          const chatMessages = await API.getMessages(latestChat._id);
           const formattedMessages = chatMessages.map((msg: any) => ({
             id: msg._id,
             text: msg.text || msg.content || '',
@@ -242,34 +283,67 @@ const Dashboard = () => {
             timestamp: new Date(msg.created_at)
           }));
           setMessages(formattedMessages);
+
+          // Check for flow_id in messages and update session
+          const latestFlowId = getLatestFlowFromMessages(formattedMessages);
+          if (latestFlowId && newSessionId) {
+            await updateUserSession(newSessionId, { flow_id: latestFlowId });
+          }
         } else {
-          // Create new chat if none exist
-          const chat = await API.createChat('Dashboard Chat');
-          setCurrentChat(chat);
+          // No chat found for this user_id - create new chat
+          const userQuery = `Welcome ${user.name || user.nickname || 'User'}`;
+          const chatTitle = userQuery.length > 40 ? 
+            userQuery.substring(0, 40).replace(/\s+\S*$/, '') : // Remove incomplete words
+            userQuery;
+            
+          const newChat = await API.createChat(chatTitle);
+          setCurrentChat(newChat);
+          
+          // Update session with new chat_id
+          if (newSessionId) {
+            await updateUserSession(newSessionId, { chat_id: newChat._id });
+          }
+          
+          // Add greeting message for new user
           setMessages([{
             id: '1',
-            text: 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.',
+            text: `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`,
             sender: 'assistant',
             timestamp: new Date()
           }]);
         }
       } catch (err) {
-        console.error('Error initializing chat:', err);
+        console.error('Error initializing user session:', err);
       }
     };
-    initChat();
-  }, []);
+
+    initUserSession();
+  }, [user]);
 
   const items = activeTab === 'flows' ? flows : agents;
-  const filtered = items.filter((i) =>
+  const filtered = (items || []).filter((i) =>
     String(i.name || '').toLowerCase().includes(search.toLowerCase()) ||
     String(i.description || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const createNewChat = async () => {
+  const createNewChat = async (userQuery?: string) => {
     try {
-      const newChat = await API.createChat(`Chat ${new Date().toLocaleString()}`);
+      // Create title from user query or default
+      let chatTitle = userQuery || `New Chat ${new Date().toLocaleDateString()}`;
+      
+      // Truncate to 40 characters and remove incomplete words
+      if (chatTitle.length > 40) {
+        chatTitle = chatTitle.substring(0, 40).replace(/\s+\S*$/, '');
+      }
+      
+      const newChat = await API.createChat(chatTitle);
       setCurrentChat(newChat);
+      
+      // Update session with new chat_id
+      if (sessionId) {
+        await updateUserSession(sessionId, { chat_id: newChat._id });
+      }
+      
       setMessages([{
         id: '1',
         text: 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.',
@@ -278,6 +352,66 @@ const Dashboard = () => {
       }]);
     } catch (error) {
       console.error('Error creating new chat:', error);
+    }
+  };
+
+  const loadN8nWorkflow = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading n8n workflows...');
+      const flows = await API.getFlows();
+      console.log('All flows:', flows);
+      
+      // Find the latest n8n workflow - simplified search
+      const n8nWorkflows = flows.filter(flow => {
+        console.log('Checking flow:', flow);
+        return flow.workflow_json || flow.n8n_response;
+      });
+      
+      console.log('Filtered n8n workflows:', n8nWorkflows);
+      
+      if (n8nWorkflows.length > 0) {
+        // Sort by newest and take the latest
+        const sortedN8n = n8nWorkflows.sort((a, b) => {
+          if (a.created_at && b.created_at) {
+            return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+          }
+          return 0;
+        });
+        
+        console.log('Selected n8n workflow:', sortedN8n[0]);
+        setN8nWorkflow(sortedN8n[0]);
+        setShowN8nWorkflow(true);
+        
+        // Set n8n mode layout: hide left panel, show graph (70%) and chat (30%)
+        setMaximizedSection('none');
+        if (!isMobile) {
+          setLeftPanelWidth(0); // Hide left panel
+          setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
+        }
+      } else {
+        console.log('No n8n workflows found, trying first flow anyway');
+        // Temporarily try the first flow for testing
+        if (flows.length > 0) {
+          console.log('Using first flow for testing:', flows[0]);
+          setN8nWorkflow(flows[0]);
+          setShowN8nWorkflow(true);
+          
+          // Set n8n mode layout
+          setMaximizedSection('none');
+          if (!isMobile) {
+            setLeftPanelWidth(0);
+            setChatPanelWidth(window.innerWidth * 0.3);
+          }
+        } else {
+          alert('No flows found at all');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading n8n workflow:', error);
+      alert('Error loading n8n workflow: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -624,6 +758,41 @@ const Dashboard = () => {
               </span>
             </button>
           ))}
+          
+          {/* n8n Button */}
+          <button
+            onClick={loadN8nWorkflow}
+            className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
+              flex items-center gap-1 md:gap-2 overflow-hidden
+              bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 hover:scale-105"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
+              <path d="M8 0L0 8l8 8 8-8-8-8z" fill="currentColor"/>
+            </svg>
+            <span className="relative z-10">n8n</span>
+          </button>
+
+          {/* Keys Button */}
+          <button
+            onClick={() => setShowKeysManager(true)}
+            className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
+              flex items-center gap-1 md:gap-2 overflow-hidden
+              bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30 hover:scale-105"
+          >
+            <Key size={16} className="text-white" />
+            <span className="relative z-10">Keys</span>
+          </button>
+
+          {/* API Button */}
+          <button
+            onClick={() => alert('API Manager - Coming Soon!')}
+            className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
+              flex items-center gap-1 md:gap-2 overflow-hidden
+              bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 hover:scale-105"
+          >
+            <Globe size={16} className="text-white" />
+            <span className="relative z-10">API</span>
+          </button>
         </div>
         
         {/* User menu */}
@@ -676,6 +845,7 @@ const Dashboard = () => {
             </div>
             
             <div className="flex-1 p-4 space-y-2">
+              {/* Main Navigation */}
               {['flows', 'agents'].map((t) => (
                 <button
                   key={t}
@@ -686,56 +856,61 @@ const Dashboard = () => {
                     setIsMobileMenuOpen(false);
                   }}
                   className={`
-                    w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300
+                    w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-lg
                     ${activeTab === t 
                       ? t === 'flows'
-                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg'
-                        : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600'
+                        ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-emerald-500/30 border border-emerald-400/50'
+                        : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-purple-500/50 border border-purple-400/50 ring-2 ring-purple-400/30'
+                      : t === 'agents'
+                        ? 'bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-200 hover:from-purple-500/30 hover:to-violet-500/30 border border-purple-500/30 hover:border-purple-400/50'
+                        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600 border border-gray-600/50'
                     }
                   `}
                 >
                   {t === 'flows' ? (
                     <Network size={18} className={activeTab === t ? 'text-white' : 'text-emerald-400'} />
                   ) : (
-                    <Bot size={18} className={activeTab === t ? 'text-white' : 'text-purple-400'} />
+                    <Bot size={18} className={activeTab === t ? 'text-white' : 'text-purple-300'} />
                   )}
                   {formatName(t.charAt(0).toUpperCase() + t.slice(1))}
                 </button>
               ))}
               
-              {/* Mobile View Controls */}
+              {/* Action Buttons */}
               <div className="pt-4 border-t border-gray-700 space-y-2">
-                <h3 className="text-sm font-semibold text-gray-400">VIEW</h3>
+                <h3 className="text-sm font-semibold text-gray-400">TOOLS</h3>
+                
                 <button
                   onClick={() => {
-                    setMaximizedSection('left');
+                    setShowN8nWorkflow(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300"
                 >
-                  <Search size={16} />
-                  Browse {formatName(activeTab)}
+                  <Globe size={16} className="text-orange-400" />
+                  n8n Workflows
                 </button>
+                
                 <button
                   onClick={() => {
-                    setMaximizedSection('graph');
+                    setShowKeysManager(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-yellow-600/20 text-yellow-200 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 transition-all duration-300"
                 >
-                  <Network size={16} />
-                  View Graph
+                  <Key size={16} className="text-yellow-400" />
+                  API Keys
                 </button>
+                
                 <button
                   onClick={() => {
-                    setMaximizedSection('chat');
+                    setShowApiManager(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-gray-700/50 text-gray-300 hover:bg-gray-600 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-blue-600/20 text-blue-200 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-400/50 transition-all duration-300"
                 >
-                  <MessageCircle size={16} />
-                  AI Chat
+                  <Settings size={16} className="text-blue-400" />
+                  API Manager
                 </button>
               </div>
             </div>
@@ -748,10 +923,10 @@ const Dashboard = () => {
         {/* Left Sidebar - Flows/Agents List - Hidden on mobile unless maximized */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
-          maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
+          showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
         } border-r border-gray-700 flex flex-col relative`}
-        style={maximizedSection === 'left' || isMobile ? {} : { 
+        style={maximizedSection === 'left' || isMobile || showN8nWorkflow ? {} : { 
           width: `${leftPanelWidth}px`,
           minWidth: `${leftPanelWidth}px`,
           maxWidth: `${leftPanelWidth}px`
@@ -924,7 +1099,7 @@ const Dashboard = () => {
         </div>
 
         {/* Mobile Header Info */}
-        {isMobile && selectedItem && (
+        {isMobile && selectedItem && !showN8nWorkflow && (
           <div className="bg-gray-800 border-b border-gray-700 p-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               {activeTab === 'flows' ? (
@@ -983,11 +1158,26 @@ const Dashboard = () => {
           </div>
 
           <div className="flex-1 w-full">
-            <GraphPanel
-              selectedItem={selectedItem}
-              selectedNode={selectedNode}
-              onNodeSelect={(node) => setSelectedNode(node)}
-            />
+            {showN8nWorkflow && n8nWorkflow ? (
+              <N8nWorkflowViewer
+                workflow={n8nWorkflow}
+                onClose={() => {
+                  setShowN8nWorkflow(false);
+                  setN8nWorkflow(null);
+                  // Restore original layout
+                  if (!isMobile) {
+                    setLeftPanelWidth(window.innerWidth * 0.2);
+                    setChatPanelWidth(window.innerWidth * 0.4);
+                  }
+                }}
+              />
+            ) : (
+              <GraphPanel
+                selectedItem={selectedItem}
+                selectedNode={selectedNode}
+                onNodeSelect={(node) => setSelectedNode(node)}
+              />
+            )}
           </div>
           
           {/* Mobile Vertical Resize Handle */}
@@ -999,7 +1189,7 @@ const Dashboard = () => {
         {/* Right Sidebar - Chat - Bottom on mobile */}
         <div className={`${
           isMobile ? 'order-2 border-t' :
-          maximizedSection === 'left' || maximizedSection === 'graph' ? 'hidden' : 
+          (!showN8nWorkflow && (maximizedSection === 'left' || maximizedSection === 'graph')) ? 'hidden' : 
           maximizedSection === 'chat' ? 'flex-1' : ''
         } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
           isMobile ? 'w-full' : ''
@@ -1031,7 +1221,7 @@ const Dashboard = () => {
               <div className="flex gap-2">
                 {/* New Chat Button */}
                 <button
-                  onClick={createNewChat}
+                  onClick={() => createNewChat()}
                   className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors"
                   title="Start new chat"
                 >
@@ -1082,20 +1272,27 @@ const Dashboard = () => {
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
                         components={{
-                          p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                          strong: ({children}) => <strong className="font-semibold text-white">{children}</strong>,
-                          em: ({children}) => <em className="text-gray-300 text-xs">{children}</em>,
-                          code: ({children}) => <code className="bg-gray-800 px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
-                          pre: ({children}) => <pre className="bg-gray-800 p-2 rounded text-xs overflow-x-auto">{children}</pre>,
-                          ul: ({children}) => <ul className="list-disc list-inside space-y-1">{children}</ul>,
-                          ol: ({children}) => <ol className="list-decimal list-inside space-y-1">{children}</ol>,
-                          li: ({children}) => <li>{children}</li>,
+                          p: ({children}) => <p className="mb-2 last:mb-0 leading-normal">{children}</p>,
+                          strong: ({children}) => <strong className="font-bold text-white bg-blue-500/20 px-1 py-0.5 rounded">{children}</strong>,
+                          em: ({children}) => <em className="text-gray-300 italic">{children}</em>,
+                          code: ({children}) => <code className="bg-gray-800 px-1 py-0.5 rounded text-xs font-mono text-green-400">{children}</code>,
+                          pre: ({children}) => <pre className="bg-gray-800 p-2 rounded text-xs overflow-x-auto my-1">{children}</pre>,
+                          ul: ({children}) => <ul className="list-disc list-inside space-y-1 ml-2 mb-2">{children}</ul>,
+                          ol: ({children}) => <ol className="list-decimal list-inside space-y-1 ml-2 mb-2">{children}</ol>,
+                          li: ({children}) => <li className="text-gray-200">{children}</li>,
                           h1: ({children}) => <h1 className="text-lg font-bold mb-2 text-white">{children}</h1>,
-                          h2: ({children}) => <h2 className="text-base font-semibold mb-2 text-white">{children}</h2>,
-                          h3: ({children}) => <h3 className="text-sm font-semibold mb-1 text-white">{children}</h3>,
+                          h2: ({children}) => <h2 className="text-base font-bold mb-1 text-blue-400">{children}</h2>,
+                          h3: ({children}) => <h3 className="text-sm font-semibold mb-1 text-purple-400">{children}</h3>,
+                          h4: ({children}) => <h4 className="text-sm font-semibold mb-1 text-gray-300">{children}</h4>,
+                          blockquote: ({children}) => <blockquote className="border-l-2 border-blue-500 pl-2 italic text-gray-300 my-1">{children}</blockquote>,
+                          hr: () => <hr className="border-gray-600 my-2" />,
+                          a: ({children, href}) => <a href={href} className="text-blue-400 hover:text-blue-300 underline">{children}</a>,
+                          table: ({children}) => <table className="w-full border-collapse border border-gray-600 my-2">{children}</table>,
+                          th: ({children}) => <th className="border border-gray-600 p-1 bg-gray-800 font-semibold text-left text-xs">{children}</th>,
+                          td: ({children}) => <td className="border border-gray-600 p-1 text-xs">{children}</td>,
                         }}
                       >
-                        {String(message.text || '')}
+                        {message.sender === 'assistant' ? formatAIMessage(String(message.text || '')) : String(message.text || '')}
                       </ReactMarkdown>
                     </div>
                     {/* Show typing indicator for empty bot messages during streaming */}
@@ -1191,6 +1388,11 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Keys Manager Modal */}
+      {showKeysManager && (
+        <KeysManager onClose={() => setShowKeysManager(false)} />
+      )}
     </div>
   );
 };

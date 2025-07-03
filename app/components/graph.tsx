@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, forwardRef, useImperativeHandle, useRef, useEffect } from 'react';
+import React, { useMemo, forwardRef, useImperativeHandle, useRef, useEffect, useState, useCallback } from 'react';
 import dagre from 'dagre';
 
 interface GraphNode {
@@ -47,6 +47,10 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
   emptyState
 }, ref) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
 
   const { nodesWithPositions, edges } = useMemo(() => {
     const nodes = data?.nodes || [];
@@ -119,14 +123,56 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
     };
   }, [data, nodeWidth, nodeHeight]);
 
-  // Auto-fit and center
+  // Handle zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setTransform(prev => ({
+      ...prev,
+      scale: Math.max(0.1, Math.min(3, prev.scale * delta))
+    }));
+  }, []);
+
+  // Handle pan
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    }
+  }, [transform]);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (isDragging) {
+      setTransform(prev => ({
+        ...prev,
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      }));
+    }
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Global mouse events
   useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp]);
+
+  // Fit view function
+  const fitView = useCallback(() => {
     if (nodesWithPositions.length > 0 && containerRef.current) {
       const container = containerRef.current;
-      const graphContent = container.querySelector('.graph-content') as HTMLElement;
+      const containerRect = container.getBoundingClientRect();
       
-      if (!graphContent) return;
-
       // Calculate bounds
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       
@@ -144,9 +190,6 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
       // Graph dimensions
       const graphWidth = maxX - minX;
       const graphHeight = maxY - minY;
-      
-      // Container dimensions
-      const containerRect = container.getBoundingClientRect();
       const padding = 50;
       
       // Calculate scale to fit
@@ -160,16 +203,19 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
       const offsetX = (containerRect.width - scaledWidth) / 2 - minX * scale;
       const offsetY = (containerRect.height - scaledHeight) / 2 - minY * scale;
       
-      // Apply transform
-      graphContent.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
-      graphContent.style.transformOrigin = '0 0';
+      setTransform({ x: offsetX, y: offsetY, scale });
     }
   }, [nodesWithPositions, nodeWidth, nodeHeight]);
 
-  useImperativeHandle(ref, () => ({
-    fitView: () => {
-      // Trigger re-fit by updating a dummy state or just rely on the effect
+  // Auto-fit on initial load
+  useEffect(() => {
+    if (nodesWithPositions.length > 0) {
+      fitView();
     }
+  }, [nodesWithPositions.length > 0 ? nodesWithPositions[0]?.id : null, fitView]);
+
+  useImperativeHandle(ref, () => ({
+    fitView
   }));
 
   // Default empty state
@@ -260,8 +306,17 @@ const Graph = forwardRef<{ fitView: () => void }, GraphProps>(({
     <div 
       ref={containerRef} 
       className={`w-full h-full bg-gray-900 relative overflow-hidden ${className}`}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
-      <div className="graph-content absolute inset-0 transition-transform duration-500 ease-out">
+      <div 
+        className="graph-content absolute inset-0"
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          transformOrigin: '0 0'
+        }}
+      >
         {/* SVG for edges */}
         <svg 
           className="absolute inset-0 w-full h-full pointer-events-none z-0"
