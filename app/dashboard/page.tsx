@@ -750,6 +750,8 @@ const Dashboard = () => {
             min-height: 75vh;
             margin-top: 15vh;
             margin-bottom: 10vh;
+            position: relative;
+            z-index: 9998;
           }
         `}</style>
       )}
@@ -759,7 +761,7 @@ const Dashboard = () => {
         }`}
       >
       {/* Header */}
-      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-50">
+      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-[9999]"
         {/* Mobile Menu Button */}
         {isMobile && (
           <button
@@ -875,7 +877,7 @@ const Dashboard = () => {
 
       {/* Mobile Navigation Sidebar */}
       {(isMobile || isTablet) && isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="fixed inset-0 z-[9999] flex">
           {/* Backdrop */}
           <div 
             className="flex-1 bg-black/50"
