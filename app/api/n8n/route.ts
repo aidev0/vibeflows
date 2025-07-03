@@ -48,10 +48,10 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error('n8n API error:', error);
-    console.error('Error stack:', error.stack);
+    console.error('Error stack:', (error as Error)?.stack);
     return NextResponse.json({ 
-      error: error.message || 'Failed to fetch workflows from database',
-      details: error.stack 
+      error: (error as Error)?.message || 'Failed to fetch workflows from database',
+      details: (error as Error)?.stack 
     }, { status: 500 });
   }
 }
