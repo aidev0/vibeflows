@@ -156,25 +156,53 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
 
   return (
     <div className="h-full w-full bg-gray-900 relative">
-      <style jsx>{`
+      <style jsx global>{`
         .react-flow__controls {
-          background: #374151 !important;
-          border: 1px solid #6B7280 !important;
+          background: #1F2937 !important;
+          border: 2px solid #374151 !important;
           border-radius: 8px !important;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+          padding: 4px !important;
         }
-        .react-flow__controls-button {
+        .react-flow__controls .react-flow__controls-button {
+          background: #374151 !important;
+          border: 1px solid #4B5563 !important;
+          color: #E5E7EB !important;
+          width: 28px !important;
+          height: 28px !important;
+          margin: 2px !important;
+          border-radius: 6px !important;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        }
+        .react-flow__controls .react-flow__controls-button:hover {
           background: #4B5563 !important;
-          border: 1px solid #6B7280 !important;
+          border-color: #6B7280 !important;
           color: #F9FAFB !important;
-          width: 24px !important;
-          height: 24px !important;
+          transform: scale(1.05) !important;
         }
-        .react-flow__controls-button:hover {
-          background: #6B7280 !important;
-          border-color: #9CA3AF !important;
+        .react-flow__controls .react-flow__controls-button svg {
+          fill: #E5E7EB !important;
+          width: 14px !important;
+          height: 14px !important;
         }
-        .react-flow__controls-button svg {
+        .react-flow__controls .react-flow__controls-button:hover svg {
+          fill: #F9FAFB !important;
+        }
+        
+        /* More specific selectors to override defaults */
+        .react-flow__controls button {
+          background: #374151 !important;
+          border: 1px solid #4B5563 !important;
+          color: #E5E7EB !important;
+        }
+        .react-flow__controls button:hover {
+          background: #4B5563 !important;
+          border-color: #6B7280 !important;
+        }
+        .react-flow__controls button svg {
+          fill: #E5E7EB !important;
+        }
+        .react-flow__controls button:hover svg {
           fill: #F9FAFB !important;
         }
       `}</style>
@@ -192,6 +220,14 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
           showZoom={true}
           showFitView={true}
           showInteractive={true}
+          className="!bg-gray-800 !border-gray-600"
+          style={{
+            background: '#374151',
+            border: '2px solid #4B5563',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+            padding: '4px'
+          }}
         />
         <Background color="#4B5563" gap={20} />
       </ReactFlow>

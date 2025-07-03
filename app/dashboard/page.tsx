@@ -356,12 +356,23 @@ const Dashboard = () => {
   };
 
   const loadN8nWorkflow = async () => {
+    if (!user?.sub) {
+      alert('Please log in to view n8n workflows');
+      return;
+    }
+    
     try {
       setLoading(true);
       console.log('Loading n8n workflows from database...');
+      console.log('User ID:', user.sub);
       
       // Get workflows from database (n8n_workflows collection)
-      const workflowsResponse = await fetch('/api/n8n?action=db_workflows');
+      const workflowsResponse = await fetch('/api/n8n?action=db_workflows', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
       
       console.log('Response status:', workflowsResponse.status);
       console.log('Response headers:', Object.fromEntries(workflowsResponse.headers.entries()));
@@ -369,6 +380,14 @@ const Dashboard = () => {
       if (!workflowsResponse.ok) {
         const responseText = await workflowsResponse.text();
         console.log('Error response text:', responseText);
+        console.log('Response status:', workflowsResponse.status);
+        console.log('Response statusText:', workflowsResponse.statusText);
+        
+        if (workflowsResponse.status === 401) {
+          alert('Authentication error. Please refresh the page and try again.');
+          return;
+        }
+        
         throw new Error(`HTTP ${workflowsResponse.status}: ${responseText}`);
       }
       
@@ -405,10 +424,12 @@ const Dashboard = () => {
         stack: error.stack,
         name: error.name
       });
-      // Only show alert for actual errors, not empty results
-      if (error.message !== 'Failed to fetch workflows from database') {
-        alert(`Error loading n8n workflows: ${error.message}`);
-      }
+      // Show user-friendly error message
+      const errorMessage = error.message.includes('HTML') || error.message.includes('<!DOCTYPE') 
+        ? 'Authentication error - please refresh the page and try again'
+        : error.message;
+      
+      alert(`Error loading n8n workflows: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -881,7 +902,7 @@ const Dashboard = () => {
                 
                 <button
                   onClick={() => {
-                    setShowN8nWorkflow(true);
+                    loadN8nWorkflow();
                     setIsMobileMenuOpen(false);
                   }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300"
@@ -1097,29 +1118,6 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Mobile Header Info */}
-        {isMobile && selectedItem && !showN8nWorkflow && (
-          <div className="bg-gray-800 border-b border-gray-700 p-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {activeTab === 'flows' ? (
-                <Network size={16} className="text-green-400" />
-              ) : (
-                <Bot size={16} className="text-purple-400" />
-              )}
-              <div>
-                <h3 className="text-sm font-semibold text-white">{formatName(String(selectedItem?.name || ''))}</h3>
-                <p className="text-xs text-gray-400 line-clamp-1">{String(selectedItem?.description || '')}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setMaximizedSection('left')}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Browse all items"
-            >
-              <Search size={16} className="text-gray-400" />
-            </button>
-          </div>
-        )}
 
         {/* Center - Graph View - 70% width when n8n is shown */}
         <div className={`${
@@ -1134,19 +1132,57 @@ const Dashboard = () => {
           minWidth: `${window.innerWidth * 0.7}px`,
           maxWidth: `${window.innerWidth * 0.7}px`
         } : {}}>
+          
+          {/* Graph Header - Mobile only for regular flows */}
+          {isMobile && !showN8nWorkflow && (
+            <div className="bg-gray-800 border-b border-gray-700 px-3 py-2 flex items-center justify-between flex-shrink-0">
+              <div className="flex items-center gap-2">
+                {activeTab === 'flows' ? (
+                  <Network size={18} className="text-green-400" />
+                ) : (
+                  <Bot size={18} className="text-purple-400" />
+                )}
+                <div>
+                  <h3 className="text-sm font-semibold text-white">
+                    {selectedItem ? formatName(String(selectedItem?.name || '')) : formatName(activeTab)}
+                  </h3>
+                  <p className="text-xs text-gray-400">
+                    {selectedItem ? String(selectedItem?.description || '') : `View ${activeTab}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setMaximizedSection('left')}
+                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                title="Browse all items"
+              >
+                <Search size={16} className="text-gray-400" />
+              </button>
+            </div>
+          )}
+
           {/* Graph Control Buttons */}
           <div className={`absolute top-2 right-2 z-20 flex gap-2 ${
             isMobile ? 'gap-1' : 'gap-2'
           }`}>
             {/* Fit Button */}
             <button
-              onClick={() => graphRef.current?.fitView()}
-              className={`bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-2 ${
-                isMobile ? 'p-1.5' : 'p-2'
-              }`}
+              onClick={() => {
+                console.log('Fit button clicked, graphRef:', graphRef.current);
+                if (graphRef.current?.fitView) {
+                  graphRef.current.fitView();
+                } else {
+                  console.warn('fitView method not available on graphRef');
+                }
+              }}
+              className={`${
+                isMobile 
+                  ? 'bg-gray-700 hover:bg-gray-600 rounded-full p-3 shadow-lg border-2 border-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center' 
+                  : 'bg-gray-800/80 hover:bg-gray-700 rounded-lg p-2'
+              } transition-colors flex items-center gap-2`}
               title="Fit Graph to View"
             >
-              <Maximize size={isMobile ? 14 : 16} />
+              <Maximize size={isMobile ? 18 : 16} className={isMobile ? 'text-white' : ''} />
             </button>
             
             {/* Maximize Button - Hide on mobile */}
@@ -1211,8 +1247,9 @@ const Dashboard = () => {
             minWidth: `${chatPanelWidth}px`,
             maxWidth: `${chatPanelWidth}px`
           }}>
-          {/* Chat Header */}
-          <div className="p-4 border-b border-white/10">
+          {/* Chat Header - Hidden on mobile */}
+          {!isMobile && (
+            <div className={`${isMobile ? 'p-3' : 'p-4'} border-b border-white/10 flex-shrink-0`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg">
@@ -1250,6 +1287,7 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+          )}
 
           {/* Messages */}
           <div className={`flex-1 overflow-y-auto space-y-4 ${
