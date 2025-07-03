@@ -761,7 +761,7 @@ const Dashboard = () => {
         }`}
       >
       {/* Header */}
-      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-[9999]"
+      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-[9999]">
         {/* Mobile Menu Button */}
         {isMobile && (
           <button
@@ -1474,9 +1474,9 @@ const Dashboard = () => {
           )}
 
           {/* Chat Input */}
-          <div className={`border-t border-white/10 ${
+          <div className={`border-t border-white/10 flex-shrink-0 ${
             isMobile ? 'p-2' : 'p-4'
-          }`}>
+          } ${isMobile && maximizedSection === 'chat' ? 'sticky bottom-0 bg-gray-900/95 backdrop-blur-sm' : ''}`}>
             <div className="flex gap-2">
               <input
                 type="text"
