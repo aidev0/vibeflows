@@ -15,7 +15,10 @@ import {
   useReactFlow,
   ReactFlowProvider,
   MarkerType,
+  Handle,
+  Position,
 } from '@xyflow/react';
+import dagre from 'dagre';
 import '@xyflow/react/dist/style.css';
 
 interface N8nWorkflowViewerProps {
@@ -27,9 +30,72 @@ interface N8nWorkflowViewerRef {
   fitView: () => void;
 }
 
+// Custom Desktop Node Component (with left/right handles)
+const DesktopN8nNode = ({ data }: any) => {
+  const { node } = data;
+  
+  return (
+    <div className="relative">
+      {/* Input handle - left side */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{
+          background: '#64748b',
+          width: '8px',
+          height: '8px',
+          border: '2px solid white',
+        }}
+      />
+      
+      {/* Node content */}
+      <div className="p-6 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-400/50 text-orange-100 rounded-2xl border-2 shadow-xl hover:shadow-2xl backdrop-blur-sm transition-all duration-300 min-w-[240px] max-w-[280px]">
+        <div className="mb-3">
+          <span className="text-sm font-semibold text-orange-100 block mb-2">
+            {node.type?.replace('n8n-nodes-base.', '') || 'Node'}
+          </span>
+          <h4 className="font-bold text-lg text-white break-words leading-tight">
+            {node.name || 'Unnamed Node'}
+          </h4>
+        </div>
+      </div>
+      
+      {/* Output handle - right side */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          background: '#64748b',
+          width: '8px',
+          height: '8px',
+          border: '2px solid white',
+        }}
+      />
+    </div>
+  );
+};
+
+const nodeTypes = {
+  desktopN8n: DesktopN8nNode,
+};
+
 // Internal component that has access to ReactFlow instance
 const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerProps>(({ workflow, onClose }, ref) => {
   const { fitView } = useReactFlow();
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Device detection
+  useEffect(() => {
+    const detectDevice = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.innerWidth < 768);
+      }
+    };
+    
+    detectDevice();
+    window.addEventListener('resize', detectDevice);
+    return () => window.removeEventListener('resize', detectDevice);
+  }, []);
   
   // Expose fitView to parent component
   useImperativeHandle(ref, () => ({
@@ -49,57 +115,137 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
 
   // Convert n8n nodes to React Flow nodes
   const reactFlowNodes: Node[] = useMemo(() => {
-    return n8nNodes.map((node: any, index: number) => {
-      const position = node.position || [200 + index * 300, 200];
+    if (isMobile) {
+      // Mobile: Use default nodes with top/bottom handles and proper layout
+      if (n8nNodes.length === 0) return [];
       
-      return {
-        id: node.name || `node-${index}`,
-        type: 'default',
-        position: { x: position[0], y: position[1] },
-        data: {
-          label: (
-            <div className="p-2 bg-white rounded-lg shadow-lg border-2 border-gray-300 min-w-[180px]">
-              {/* Node Header */}
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-200">
-                <div className="w-6 h-6 bg-orange-500 rounded flex items-center justify-center">
-                  <div className="w-3 h-3 bg-white rounded" />
+      // Create dagre graph for mobile layout (top-bottom)
+      const dagreGraph = new dagre.graphlib.Graph();
+      dagreGraph.setDefaultEdgeLabel(() => ({}));
+      dagreGraph.setGraph({
+        rankdir: 'TB', // Top-Bottom for mobile
+        nodesep: 80,
+        ranksep: 150,
+        marginx: 40,
+        marginy: 40,
+      });
+
+      // Add nodes to dagre
+      n8nNodes.forEach((node: any, index: number) => {
+        const nodeId = node.name || `node-${index}`;
+        dagreGraph.setNode(nodeId, { 
+          width: 260, 
+          height: 120 
+        });
+      });
+
+      // Add edges to dagre based on n8n connections
+      Object.entries(n8nConnections).forEach(([sourceNodeName, nodeConnections]: [string, any]) => {
+        if (!nodeConnections.main) return;
+        
+        nodeConnections.main.forEach((connectionGroup: any[]) => {
+          connectionGroup.forEach((connection: any) => {
+            if (dagreGraph.hasNode(sourceNodeName) && dagreGraph.hasNode(connection.node)) {
+              dagreGraph.setEdge(sourceNodeName, connection.node);
+            }
+          });
+        });
+      });
+
+      // Calculate layout
+      dagre.layout(dagreGraph);
+
+      return n8nNodes.map((node: any, index: number) => {
+        const nodeId = node.name || `node-${index}`;
+        const dagreNode = dagreGraph.node(nodeId);
+        
+        return {
+          id: nodeId,
+          type: 'default',
+          position: dagreNode ? {
+            x: dagreNode.x - dagreNode.width / 2,
+            y: dagreNode.y - dagreNode.height / 2,
+          } : { x: 200, y: 200 + index * 150 },
+          data: {
+            label: (
+              <div className="p-6 bg-gradient-to-r from-orange-500/20 to-amber-500/20 border-orange-400/50 text-orange-100 rounded-2xl border-2 shadow-xl hover:shadow-2xl backdrop-blur-sm transition-all duration-300 min-w-[240px] max-w-[280px]">
+                <div className="mb-2">
+                  <span className="text-sm font-semibold text-orange-100 block mb-2">
+                    {node.type?.replace('n8n-nodes-base.', '') || 'Node'}
+                  </span>
+                  <h4 className="font-bold text-base text-white break-words leading-tight">
+                    {node.name || 'Unnamed Node'}
+                  </h4>
                 </div>
-                <span className="text-xs font-semibold text-gray-700 truncate">
-                  {node.type?.replace('n8n-nodes-base.', '') || 'Node'}
-                </span>
               </div>
-              
-              {/* Node Body */}
-              <div>
-                <h4 className="font-semibold text-sm text-gray-800 mb-1 leading-tight">
-                  {node.name || 'Unnamed Node'}
-                </h4>
-                
-                {/* Node Details */}
-                {node.parameters && Object.keys(node.parameters).length > 0 && (
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-600">
-                      {Object.entries(node.parameters).slice(0, 2).map(([key, value]: [string, any]) => (
-                        <div key={key} className="truncate">
-                          <span className="font-medium">{key}:</span> {
-                            typeof value === 'string' ? value.slice(0, 20) : String(value).slice(0, 20)
-                          }{String(value).length > 20 ? '...' : ''}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )
-        },
-        style: {
-          background: 'transparent',
-          border: 'none',
-        }
-      };
-    });
-  }, [n8nNodes]);
+            )
+          },
+          style: {
+            background: 'transparent',
+            border: 'none',
+            padding: 0
+          }
+        };
+      });
+    } else {
+      // Desktop: Use Dagre layout with custom nodes (left-to-right)
+      if (n8nNodes.length === 0) return [];
+      
+      // Create dagre graph for layout calculation
+      const dagreGraph = new dagre.graphlib.Graph();
+      dagreGraph.setDefaultEdgeLabel(() => ({}));
+      dagreGraph.setGraph({
+        rankdir: 'LR', // Left-Right for desktop
+        nodesep: 120,
+        ranksep: 200,
+        marginx: 40,
+        marginy: 40,
+      });
+
+      // Add nodes to dagre
+      n8nNodes.forEach((node: any, index: number) => {
+        const nodeId = node.name || `node-${index}`;
+        dagreGraph.setNode(nodeId, { 
+          width: 260, 
+          height: 140 
+        });
+      });
+
+      // Add edges to dagre based on n8n connections
+      Object.entries(n8nConnections).forEach(([sourceNodeName, nodeConnections]: [string, any]) => {
+        if (!nodeConnections.main) return;
+        
+        nodeConnections.main.forEach((connectionGroup: any[]) => {
+          connectionGroup.forEach((connection: any) => {
+            if (dagreGraph.hasNode(sourceNodeName) && dagreGraph.hasNode(connection.node)) {
+              dagreGraph.setEdge(sourceNodeName, connection.node);
+            }
+          });
+        });
+      });
+
+      // Calculate layout
+      dagre.layout(dagreGraph);
+
+      // Create React Flow nodes with calculated positions
+      return n8nNodes.map((node: any, index: number) => {
+        const nodeId = node.name || `node-${index}`;
+        const dagreNode = dagreGraph.node(nodeId);
+        
+        return {
+          id: nodeId,
+          type: 'desktopN8n',
+          position: dagreNode ? {
+            x: dagreNode.x - dagreNode.width / 2,
+            y: dagreNode.y - dagreNode.height / 2,
+          } : { x: 200 + index * 300, y: 200 },
+          data: {
+            node
+          }
+        };
+      });
+    }
+  }, [n8nNodes, n8nConnections, isMobile]);
 
   // Convert n8n connections to React Flow edges
   const reactFlowEdges: Edge[] = useMemo(() => {
@@ -117,7 +263,7 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
             type: 'smoothstep',
             style: {
               stroke: '#64748b',
-              strokeWidth: 2,
+              strokeWidth: 1,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
@@ -212,6 +358,7 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        nodeTypes={!isMobile ? nodeTypes : undefined}
         connectionLineType={ConnectionLineType.SmoothStep}
         fitView
         style={{ background: '#111827' }}

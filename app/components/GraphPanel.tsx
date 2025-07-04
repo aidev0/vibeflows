@@ -1,16 +1,33 @@
 'use client';
 
-import React, { forwardRef } from 'react';
-import { Network, GitBranch, Bot } from 'lucide-react';
+import React, { forwardRef, useState, useEffect } from 'react';
+import { Network, GitBranch, Bot, Maximize2, Minimize2 } from 'lucide-react';
 import Graph from './graph';
 
 interface GraphPanelProps {
   selectedItem: any;
   selectedNode: any;
   onNodeSelect: (node: any) => void;
+  maximizedSection?: string;
+  onMaximizeToggle?: () => void;
 }
 
-const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selectedItem, selectedNode, onNodeSelect }, ref) => {
+const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selectedItem, selectedNode, onNodeSelect, maximizedSection, onMaximizeToggle }, ref) => {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Device detection
+  useEffect(() => {
+    const detectDevice = () => {
+      if (typeof window !== 'undefined') {
+        setIsMobile(window.innerWidth < 768);
+      }
+    };
+    
+    detectDevice();
+    window.addEventListener('resize', detectDevice);
+    return () => window.removeEventListener('resize', detectDevice);
+  }, []);
+  
   // Helper function to format names
   const formatName = (name: string) => {
     if (!name) return '';
@@ -28,36 +45,7 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
   };
 
   // Custom empty state
-  const emptyState = (
-    <div className="text-center">
-      <div className="relative p-8 bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-white/10 max-w-md mx-auto">
-        <div className="relative mb-6">
-          <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/30 to-purple-500/30 rounded-full blur-lg opacity-75" />
-          <Network size={64} className="relative mx-auto text-blue-400" />
-        </div>
-        <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          Select a Flow or Agent
-        </h3>
-        <p className="text-gray-300 leading-relaxed mb-6">
-          Choose from the side panels to visualize your workflow graph
-        </p>
-        <div className="flex justify-center gap-4">
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-            <span>Agents</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span>Flows</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400">
-            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-            <span>Functions</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const emptyState = null;
 
   // Custom node renderer with beautiful colors
   const renderNode = (node: any, isSelected: boolean) => {
@@ -79,48 +67,60 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
         style={{ 
           left: `${node.position.x}px`, 
           top: `${node.position.y}px`, 
-          width: '280px', 
-          height: '120px' 
+          width: isMobile ? '320px' : '280px', 
+          height: isMobile ? '140px' : '120px' 
         }}
         onClick={() => onNodeSelect(node)}
       >
-        <div className="flex items-center gap-3 mb-3">
-          <div className={`p-2 rounded-lg ${
-            nodeType === 'agent' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
-            nodeType === 'flow' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-            'bg-gradient-to-r from-blue-500 to-cyan-500'
-          }`}>
-            {nodeType === 'agent' ? <Bot size={16} className="text-white" /> : 
-             nodeType === 'flow' ? <GitBranch size={16} className="text-white" /> :
-             <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
-               <path
-                 d="M8.5 2C10 2 11 3 11 4.5S10 7 8.5 7H7v1h3c0.3 0 0.5 0.2 0.5 0.5S10.3 9 10 9H7v4c0 1.5-0.8 2.5-2 3-0.3 0.1-0.6-0.1-0.6-0.4 0-0.2 0.1-0.3 0.3-0.4C5.5 14.8 6 14.2 6 13V5c0-1.7 1.3-3 3-3h2.5c0.3 0 0.5 0.2 0.5 0.5S11.8 3 11.5 3H8.5C7.7 3 7 3.7 7 4.5V6h1.5C9.3 6 10 5.3 10 4.5S9.3 3 8.5 3z"
-                 fill="currentColor"
-               />
-             </svg>}
+        {isMobile ? (
+          // Mobile: Only show name with bigger font
+          <div className="flex items-center justify-center h-full">
+            <h4 className="font-bold text-xl text-white text-center break-words leading-tight px-2">{nodeName}</h4>
           </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-sm text-white break-words leading-tight">{nodeName}</h4>
-          </div>
-        </div>
-        <p className="text-xs text-gray-300 leading-relaxed mb-3 break-words overflow-hidden"
-           style={{
-             display: '-webkit-box',
-             WebkitLineClamp: 2,
-             WebkitBoxOrient: 'vertical',
-             lineHeight: '1.4',
-             maxHeight: '2.8em'
-           }}
-        >{nodeDescription}</p>
+        ) : (
+          // Desktop: Show full layout
+          <>
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`p-2 rounded-lg ${
+                nodeType === 'agent' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
+                nodeType === 'flow' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
+                'bg-gradient-to-r from-blue-500 to-cyan-500'
+              }`}>
+                {nodeType === 'agent' ? <Bot size={16} className="text-white" /> : 
+                 nodeType === 'flow' ? <GitBranch size={16} className="text-white" /> :
+                 <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
+                   <path
+                     d="M8.5 2C10 2 11 3 11 4.5S10 7 8.5 7H7v1h3c0.3 0 0.5 0.2 0.5 0.5S10.3 9 10 9H7v4c0 1.5-0.8 2.5-2 3-0.3 0.1-0.6-0.1-0.6-0.4 0-0.2 0.1-0.3 0.3-0.4C5.5 14.8 6 14.2 6 13V5c0-1.7 1.3-3 3-3h2.5c0.3 0 0.5 0.2 0.5 0.5S11.8 3 11.5 3H8.5C7.7 3 7 3.7 7 4.5V6h1.5C9.3 6 10 5.3 10 4.5S9.3 3 8.5 3z"
+                     fill="currentColor"
+                   />
+                 </svg>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm text-white break-words leading-tight">{nodeName}</h4>
+              </div>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed mb-3 break-words overflow-hidden"
+               style={{
+                 display: '-webkit-box',
+                 WebkitLineClamp: 2,
+                 WebkitBoxOrient: 'vertical',
+                 lineHeight: '1.4',
+                 maxHeight: '2.8em'
+               }}
+            >{nodeDescription}</p>
+          </>
+        )}
       </div>
     );
   };
 
   // Custom edge renderer with beautiful gradients
   const renderEdge = (edge: any, sourcePos: { x: number; y: number }, targetPos: { x: number; y: number }, isHighlighted: boolean) => {
-    const startX = sourcePos.x + 140; // center of wider node
-    const startY = sourcePos.y + 120; // bottom of taller node
-    const endX = targetPos.x + 140;   // center of wider node
+    const nodeWidth = isMobile ? 320 : 280;
+    const nodeHeight = isMobile ? 140 : 120;
+    const startX = sourcePos.x + nodeWidth / 2; // center of node
+    const startY = sourcePos.y + nodeHeight; // bottom of node
+    const endX = targetPos.x + nodeWidth / 2;   // center of node
     const endY = targetPos.y;         // top of node
     
     const midX = (startX + endX) / 2;
@@ -216,6 +216,21 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
 
   return (
     <div className="h-full w-full relative">
+      {/* Desktop maximize button */}
+      {!isMobile && selectedItem && graphData.nodes.length > 0 && onMaximizeToggle && (
+        <div className="absolute top-4 right-4 z-10">
+          <button
+            onClick={onMaximizeToggle}
+            className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors shadow-lg"
+            title={maximizedSection === 'graph' ? 'Restore Graph' : 'Maximize Graph'}
+          >
+            {maximizedSection === 'graph' ? 
+              <Minimize2 size={16} className="text-white" /> : 
+              <Maximize2 size={16} className="text-white" />
+            }
+          </button>
+        </div>
+      )}
       
       {/* Graph component - only render if there's valid data */}
       {selectedItem && graphData.nodes.length > 0 && (
@@ -226,11 +241,14 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
           onNodeClick={onNodeSelect}
           renderNode={renderNode}
           renderEdge={renderEdge}
-          nodeWidth={280}
-          nodeHeight={120}
+          nodeWidth={isMobile ? 320 : 280}
+          nodeHeight={isMobile ? 140 : 120}
           className="h-full w-full"
         />
       )}
+      
+      {/* Empty state */}
+      {(!selectedItem || !graphData.nodes.length) && emptyState}
     </div>
   );
 });

@@ -5,6 +5,7 @@ import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Mi
 import GraphPanel from '../components/GraphPanel';
 import N8nWorkflowViewer from '../components/N8nWorkflowViewer';
 import KeysManager from '../components/KeysManager';
+import ChatInput from '../components/ChatInput';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useUser } from '@auth0/nextjs-auth0/client';
@@ -12,8 +13,12 @@ import { createUserSession, updateUserSession, getLatestFlowFromMessages } from 
 
 // API functions
 const API = {
-  getFlows: async () => {
-    const response = await fetch('/api/flows');
+  getFlows: async (userId?: string) => {
+    const response = await fetch(`/api/flows${userId ? `?userId=${userId}` : ''}`);
+    return response.json();
+  },
+  getLatestFlow: async (userId: string) => {
+    const response = await fetch(`/api/flows?userId=${userId}&latest=true`);
     return response.json();
   },
   getAgents: async () => {
@@ -84,7 +89,6 @@ const Dashboard = () => {
   const [maximizedSection, setMaximizedSection] = useState<'none' | 'left' | 'graph' | 'chat'>('none');
   const [currentChat, setCurrentChat] = useState<any>(null);
   const [messages, setMessages] = useState<Array<{id: string, text: string, sender: 'user' | 'assistant', timestamp: Date}>>([]);
-  const [chatInput, setChatInput] = useState('');
   const [leftPanelWidth, setLeftPanelWidth] = useState(300); // Default width
   const [chatPanelWidth, setChatPanelWidth] = useState(400); // Default width
   const [isDragging, setIsDragging] = useState<'left' | 'right' | null>(null);
@@ -205,6 +209,75 @@ const Dashboard = () => {
     }
   }, [user, isLoading, error]);
 
+  // Reset and reload function
+  const resetAndReload = async () => {
+    console.log('🔄 Resetting and reloading data...');
+    setLoading(true);
+    setSelectedItem(null);
+    setFlows([]);
+    setAgents([]);
+    
+    // Small delay to ensure state is reset
+    setTimeout(async () => {
+      const fetchData = async () => {
+        try {
+          console.log('🔄 Fetching fresh data for activeTab:', activeTab);
+          console.log('🔄 User ID:', user?.sub);
+          
+          const data = activeTab === 'flows' 
+            ? await API.getFlows(user?.sub || undefined) 
+            : await API.getAgents();
+            
+          console.log('🔄 Fresh data received:', data);
+          const arrayData = Array.isArray(data) ? data : [];
+          
+          if (activeTab === 'flows') {
+            setFlows(arrayData);
+            console.log('🔄 Flows set to:', arrayData.length, 'items');
+          } else {
+            setAgents(arrayData);
+            console.log('🔄 Agents set to:', arrayData.length, 'items');
+          }
+          
+          if (arrayData.length > 0) {
+            console.log('🔄 Auto-selecting first item:', arrayData[0]);
+            setSelectedItem(arrayData[0]);
+          }
+        } catch (error) {
+          console.error('🔄 Error during reset and reload:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      await fetchData();
+    }, 100);
+  };
+
+  // Expose functions to window for testing
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).loadLatestFlowForUser = loadLatestFlowForUser;
+      (window as any).resetAndReload = resetAndReload;
+      (window as any).debugState = () => ({
+        user: user?.sub,
+        activeTab,
+        flows: flows.length,
+        agents: agents.length,
+        selectedItem: selectedItem?.name || 'none'
+      });
+      
+      console.log('🔧 Debug functions available:');
+      console.log('  - loadLatestFlowForUser(userId)');
+      console.log('  - resetAndReload()');
+      console.log('  - debugState()');
+      
+      if (user?.sub) {
+        console.log(`🔧 To test latest flow: loadLatestFlowForUser("${user.sub}")`);
+      }
+    }
+  }, [user?.sub, activeTab, flows.length, agents.length, selectedItem]);
+
   // Helper function to safely get ID from item
   const getItemId = (item: any): string => {
     if (item?._id) {
@@ -239,53 +312,89 @@ const Dashboard = () => {
       .trim();
   };
 
+  // Function to manually load latest flow for a specific user
+  const loadLatestFlowForUser = async (userId: string) => {
+    try {
+      setLoading(true);
+      console.log('Manually loading latest flow for user:', userId);
+      
+      const latestFlow = await API.getLatestFlow(userId);
+      console.log('Latest flow loaded for user:', latestFlow);
+      
+      if (latestFlow && !latestFlow.error) {
+        setSelectedItem(latestFlow);
+        console.log('Successfully set latest flow as selected item');
+        return latestFlow;
+      } else {
+        console.log('No flows found for user:', userId);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error loading latest flow for user:', error);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load flows/agents
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data = activeTab === 'flows' ? await API.getFlows() : await API.getAgents();
-        activeTab === 'flows' ? setFlows(data) : setAgents(data);
+        const data = activeTab === 'flows' ? await API.getFlows(user?.sub || undefined) : await API.getAgents();
+        console.log(`${activeTab} API response:`, data, 'Type:', typeof data, 'IsArray:', Array.isArray(data));
+        const arrayData = Array.isArray(data) ? data : [];
+        activeTab === 'flows' ? setFlows(arrayData) : setAgents(arrayData);
         
-        // Auto-select latest item for current user, prioritizing items with flow_id
-        if (data && data.length > 0) {
-          let selectedItem = null;
-          
-          // First, try to find items for current user
-          if (user?.sub) {
-            const userItems = data.filter((item: any) => item.user_id === user.sub);
+        // Auto-select latest flow for current user
+        if (activeTab === 'flows' && user?.sub && arrayData.length > 0) {
+          try {
+            console.log('Loading latest flow for user:', user.sub);
+            const latestFlow = await API.getLatestFlow(user.sub);
+            console.log('Latest flow loaded:', latestFlow);
+            
+            if (latestFlow && !latestFlow.error) {
+              setSelectedItem(latestFlow);
+            } else {
+              // Fallback to first available flow if no latest flow found
+              const selectedItem = arrayData[0];
+              if (selectedItem) {
+                setSelectedItem(selectedItem);
+              }
+            }
+          } catch (latestFlowError) {
+            console.log('Error loading latest flow, using fallback:', latestFlowError);
+            // Fallback to manual selection logic
+            const userItems = arrayData.filter((item: any) => item.user_id === user.sub);
             if (userItems.length > 0) {
-              // Sort by created_at or updated_at descending to get latest
               const sortedUserItems = userItems.sort((a: any, b: any) => {
                 const aDate = new Date(a.updated_at || a.created_at || 0);
                 const bDate = new Date(b.updated_at || b.created_at || 0);
                 return bDate.getTime() - aDate.getTime();
               });
-              
-              // Prefer items with flow_id (graph data)
-              const latestWithGraph = sortedUserItems.find((item: any) => 
-                item.flow_id || 
-                (item.nodes && item.nodes.length > 0) || 
-                (item.functions && item.functions.length > 0)
-              );
-              
-              selectedItem = latestWithGraph || sortedUserItems[0];
+              setSelectedItem(sortedUserItems[0]);
+            } else if (arrayData.length > 0) {
+              setSelectedItem(arrayData[0]);
+            }
+          }
+        } else if (activeTab === 'agents' && arrayData.length > 0) {
+          // For agents, use existing logic
+          let selectedItem = null;
+          if (user?.sub) {
+            const userItems = arrayData.filter((item: any) => item.user_id === user.sub);
+            if (userItems.length > 0) {
+              const sortedUserItems = userItems.sort((a: any, b: any) => {
+                const aDate = new Date(a.updated_at || a.created_at || 0);
+                const bDate = new Date(b.updated_at || b.created_at || 0);
+                return bDate.getTime() - aDate.getTime();
+              });
+              selectedItem = sortedUserItems[0];
             }
           }
           
-          // Fallback: find any item with graph data
-          if (!selectedItem) {
-            const itemWithGraph = data.find((item: any) => 
-              item.flow_id || 
-              (item.nodes && item.nodes.length > 0) || 
-              (item.functions && item.functions.length > 0)
-            );
-            selectedItem = itemWithGraph;
-          }
-          
-          // Final fallback: first item (especially for mobile)
-          if (!selectedItem && (isMobile || data.length > 0)) {
-            selectedItem = data[0];
+          if (!selectedItem && arrayData.length > 0) {
+            selectedItem = arrayData[0];
           }
           
           if (selectedItem) {
@@ -301,20 +410,67 @@ const Dashboard = () => {
     fetchData();
   }, [activeTab, isMobile, user?.sub]);
 
-  // Initialize user session and chat
-  useEffect(() => {
-    const initUserSession = async () => {
-      // Wait until we have a valid user with user_id
-      if (!user || !user.sub) {
-        console.log('Waiting for user session...', { user: !!user, userSub: user?.sub });
-        return;
-      }
 
+  const items = activeTab === 'flows' ? flows : agents;
+  const filtered = (Array.isArray(items) ? items : []).filter((i) =>
+    String(i.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    String(i.description || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Main user login flow
+  useEffect(() => {
+    // Step 1: Wait for Auth0 response
+    if (!user?.sub || isLoading) {
+      return;
+    }
+
+    // Step 2: User authenticated - start loading latest chat
+    const loadUserChat = async () => {
       try {
-        console.log('Initializing user session for user_id:', user.sub);
+        console.log('User authenticated, loading latest chat for user_id:', user.sub);
         
-        // Create user session
-        const newSessionId = await createUserSession({
+        // Step 3: Load latest chat_id for this user
+        const chats = await API.getChats(user.sub!);
+        console.log('User chats:', chats);
+        
+        if (chats && chats.length > 0) {
+          // Step 4: Load latest chat and its messages
+          const latestChat = chats[0];
+          setCurrentChat(latestChat);
+          
+          const messages = await API.getMessages(latestChat._id);
+          const formattedMessages = messages.map((msg: any) => ({
+            id: msg._id,
+            text: msg.text || msg.content || '',
+            sender: msg.role === 'user' ? 'user' : 'assistant',
+            timestamp: new Date(msg.created_at)
+          }));
+          setMessages(formattedMessages);
+          
+          console.log('Loaded latest chat with', formattedMessages.length, 'messages');
+        } else {
+          // Step 5: No chat_id exists → create one
+          console.log('No existing chat found, creating new chat');
+          const chatTitle = `Welcome ${user.name || user.nickname || 'User'}`;
+          const newChat = await API.createChat(chatTitle, user.sub!);
+          setCurrentChat(newChat);
+          
+          // Create greeting message
+          const greetingText = `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows!`;
+          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant');
+          
+          setMessages([{
+            id: savedMessage._id || '1',
+            text: greetingText,
+            sender: 'assistant',
+            timestamp: new Date(savedMessage.created_at || new Date())
+          }]);
+          
+          console.log('Created new chat with greeting message');
+        }
+        
+        // Create user session after chat is loaded
+        const sessionId = await createUserSession({
           user_profile: {
             name: user.name,
             email: user.email,
@@ -322,93 +478,35 @@ const Dashboard = () => {
             picture: user.picture
           }
         });
-        setSessionId(newSessionId);
-
-        // Load latest chat for this user_id (now guaranteed to be valid)
-        const chats = await API.getChats(user.sub);
+        setSessionId(sessionId);
         
-        if (chats && chats.length > 0) {
-          // Load the most recent chat for this user
-          const latestChat = chats[0];
-          setCurrentChat(latestChat);
-          
-          // Update session with latest chat_id
-          if (newSessionId) {
-            await updateUserSession(newSessionId, { chat_id: latestChat._id });
-          }
-          
-          // Load messages for this chat
-          const chatMessages = await API.getMessages(latestChat._id);
-          const formattedMessages = chatMessages.map((msg: any) => ({
-            id: msg._id,
-            text: msg.text || msg.content || '',
-            sender: msg.role === 'user' ? 'user' : 'assistant',
-            timestamp: new Date(msg.created_at)
-          }));
-          setMessages(formattedMessages);
-
-          // Check for flow_id in messages and update session
-          const latestFlowId = getLatestFlowFromMessages(formattedMessages);
-          if (latestFlowId && newSessionId) {
-            await updateUserSession(newSessionId, { flow_id: latestFlowId });
-          }
-        } else {
-          // No chat found for this user_id - create new chat
-          const userQuery = `Welcome ${user.name || user.nickname || 'User'}`;
-          const chatTitle = userQuery.length > 40 ? 
-            userQuery.substring(0, 40).replace(/\s+\S*$/, '') : // Remove incomplete words
-            userQuery;
-            
-          const newChat = await API.createChat(chatTitle, user.sub);
-          setCurrentChat(newChat);
-          
-          // Update session with new chat_id
-          if (newSessionId) {
-            await updateUserSession(newSessionId, { chat_id: newChat._id });
-          }
-          
-          // Create and send greeting message to database
-          const greetingText = `Hello ${user.name || user.nickname || 'there'}! 👋 Welcome to VibeFlows! I'm your AI assistant ready to help you create powerful automation flows, manage intelligent agents, and optimize your marketing processes. What would you like to build today?`;
-          
-          // Send greeting message to database
-          const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant');
-          
-          // Display greeting message in UI
-          setMessages([{
-            id: savedMessage._id || '1',
-            text: greetingText,
-            sender: 'assistant',
-            timestamp: new Date(savedMessage.created_at || new Date())
-          }]);
-        }
-      } catch (err) {
-        console.error('Error initializing user session:', err);
+      } catch (error) {
+        console.error('Error in user login flow:', error);
       }
     };
+    
+    loadUserChat();
+  }, [user, isLoading]);
 
-    initUserSession();
-  }, [user]);
-
-  const items = activeTab === 'flows' ? flows : agents;
-  const filtered = (items || []).filter((i) =>
-    String(i.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    String(i.description || '').toLowerCase().includes(search.toLowerCase())
-  );
 
   const createNewChat = async (userQuery?: string) => {
+    if (!user?.sub) {
+      console.log('User not authenticated');
+      return;
+    }
+
     try {
-      // Create title from user query or default
+      console.log('Creating new chat for user_id:', user?.sub);
+      
       let chatTitle = userQuery || `New Chat ${new Date().toLocaleDateString()}`;
       
-      // Truncate to 40 characters and remove incomplete words
       if (chatTitle.length > 40) {
         chatTitle = chatTitle.substring(0, 40).replace(/\s+\S*$/, '');
       }
       
-      const newChat = await API.createChat(chatTitle, user?.sub || undefined);
+      const newChat = await API.createChat(chatTitle, user!.sub!);
       setCurrentChat(newChat);
       
-      // Update session with new chat_id
       if (sessionId) {
         await updateUserSession(sessionId, { chat_id: newChat._id });
       }
@@ -504,21 +602,24 @@ const Dashboard = () => {
     }
   };
 
-  const sendMessage = async () => {
-    if (chatInput.trim() && !isStreaming && user?.sub) {
+  const sendMessage = async (messageText: string) => {
+    if (messageText.trim() && !isStreaming) {
+      if (!user?.sub) {
+        console.log('User not authenticated');
+        return;
+      }
       const userMessage = {
         id: Date.now().toString(),
-        text: chatInput,
+        text: messageText,
         sender: 'user' as const,
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, userMessage]);
-      setChatInput('');
       setIsStreaming(true);
 
       try {
-        const response = await API.callAIAutomation(userMessage.text, currentChat?._id, user.sub);
+        const response = await API.callAIAutomation(userMessage.text, currentChat?._id, user!.sub!);
         
         if (response.ok) {
           const reader = response.body?.getReader();
@@ -751,6 +852,15 @@ const Dashboard = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-scroll to bottom when chat is maximized
+  useEffect(() => {
+    if (isMobile && maximizedSection === 'chat') {
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [maximizedSection, isMobile]);
+
   // Mouse drag handlers for resizable panels
   const handleMouseDown = (side: 'left' | 'right') => (e: React.MouseEvent) => {
     e.preventDefault();
@@ -858,7 +968,7 @@ const Dashboard = () => {
         }`}
       >
       {/* Header */}
-      <header className="bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-50">
+      <header className={`bg-gray-800 px-4 md:px-6 py-4 flex justify-between items-center border-b border-gray-700 relative z-50 ${isMobile ? 'h-[10vh] min-h-[60px]' : ''}`}>
         {/* Mobile Menu Button */}
         {isMobile && (
           <button
@@ -867,6 +977,15 @@ const Dashboard = () => {
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
+        )}
+        
+        {/* Mobile Flow Title */}
+        {isMobile && (
+          <div className="flex-1 text-center px-4">
+            <h1 className="text-xs sm:text-sm md:text-base font-semibold text-white truncate">
+              {selectedItem?.name ? formatName(selectedItem.name) : activeTab === 'flows' ? 'Flows' : 'Agents'}
+            </h1>
+          </div>
         )}
         
         {/* Tab Navigation - Hidden on mobile, shown in sidebar */}
@@ -933,16 +1052,6 @@ const Dashboard = () => {
             <span className="relative z-10">Keys</span>
           </button>
 
-          {/* API Button */}
-          <button
-            onClick={() => alert('API Manager - Coming Soon!')}
-            className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
-              flex items-center gap-1 md:gap-2 overflow-hidden
-              bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 hover:scale-105"
-          >
-            <Globe size={16} className="text-white" />
-            <span className="relative z-10">API</span>
-          </button>
         </div>
         
         {/* User menu */}
@@ -954,10 +1063,10 @@ const Dashboard = () => {
           {user && (
             <a
               href="/api/auth/logout"
-              className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-xs md:text-sm"
+              className="hidden md:flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors text-xs md:text-sm"
             >
               <LogOut size={14} />
-              <span className="hidden md:inline">Logout</span>
+              <span>Logout</span>
             </a>
           )}
           {!user && !isLoading && (
@@ -974,27 +1083,21 @@ const Dashboard = () => {
 
       {/* Mobile Navigation Sidebar */}
       {(isMobile || isTablet) && isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex mobile-nav-overlay">
-          {/* Backdrop */}
-          <div 
-            className="flex-1 bg-black/50"
-            onClick={() => setIsMobileMenuOpen(false)}
-          />
-          
-          {/* Sidebar */}
-          <div className={`bg-gray-800 shadow-lg flex flex-col mobile-nav-sidebar ${
-            orientation === 'landscape' && isMobile ? 'w-80' : 'w-64'
-          }`}>
-            <div className="p-4 border-b border-gray-700">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white">Navigation</h2>
-                <div className="text-xs text-gray-400">
-                  {deviceType} • {orientation}
-                </div>
+        <div className="fixed inset-0 z-50 mobile-nav-overlay">
+          {/* Full Screen Sidebar */}
+          <div className="bg-gray-800 shadow-lg flex flex-col mobile-nav-sidebar w-full h-full">
+            <div className="p-4 border-b border-gray-700 flex-shrink-0">
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
+                >
+                  <X size={20} className="text-white" />
+                </button>
               </div>
             </div>
             
-            <div className="flex-1 p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
               {/* Main Navigation */}
               {['flows', 'agents'].map((t) => (
                 <button
@@ -1012,7 +1115,7 @@ const Dashboard = () => {
                     }
                   }}
                   className={`
-                    w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-300 shadow-lg
+                    w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg transition-all duration-300 shadow-lg
                     ${activeTab === t 
                       ? t === 'flows'
                         ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-emerald-500/30 border border-emerald-400/50'
@@ -1033,17 +1136,16 @@ const Dashboard = () => {
               ))}
               
               {/* Action Buttons */}
-              <div className="pt-4 border-t border-gray-700 space-y-2">
-                <h3 className="text-sm font-semibold text-gray-400">TOOLS</h3>
+              <div className="pt-4 border-t border-gray-700 space-y-4">
                 
                 <button
                   onClick={() => {
                     loadN8nWorkflow();
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300"
+                  className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 shadow-lg"
                 >
-                  <Globe size={16} className="text-orange-400" />
+                  <Globe size={20} className="text-orange-400" />
                   n8n Workflows
                 </button>
                 
@@ -1052,22 +1154,31 @@ const Dashboard = () => {
                     setShowKeysManager(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-yellow-600/20 text-yellow-200 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 transition-all duration-300"
+                  className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-yellow-600/20 text-yellow-200 hover:bg-yellow-500/30 border border-yellow-500/30 hover:border-yellow-400/50 transition-all duration-300 shadow-lg"
                 >
-                  <Key size={16} className="text-yellow-400" />
+                  <Key size={20} className="text-yellow-400" />
                   API Keys
                 </button>
                 
-                <button
-                  onClick={() => {
-                    setShowApiManager(true);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-blue-600/20 text-blue-200 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-400/50 transition-all duration-300"
-                >
-                  <Settings size={16} className="text-blue-400" />
-                  API Manager
-                </button>
+                
+                {/* User Section */}
+                {user && (
+                  <div className="mt-4 pt-4 border-t border-gray-700">
+                    <div className="flex items-center gap-4 px-6 py-3 mb-4">
+                      <User size={20} className="text-gray-400" />
+                      <span className="text-lg text-gray-300 truncate font-medium">
+                        {user.name || user.nickname || user.email || 'User'}
+                      </span>
+                    </div>
+                    <a
+                      href="/api/auth/logout"
+                      className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-red-600/20 text-red-200 hover:bg-red-500/30 border border-red-500/30 hover:border-red-400/50 transition-all duration-300 shadow-lg"
+                    >
+                      <LogOut size={20} className="text-red-400" />
+                      Logout
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1075,7 +1186,7 @@ const Dashboard = () => {
       )}
       
 
-      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`}>
+      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`} style={{ paddingBottom: '80px' }}>
         {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
@@ -1091,7 +1202,7 @@ const Dashboard = () => {
           <div 
             className={`${
               isMobile && maximizedSection === 'left' 
-                ? 'bg-gray-800 w-full flex flex-col' 
+                ? 'bg-gray-800 w-full flex flex-col h-full' 
                 : 'bg-gray-800 border-r border-gray-700 overflow-y-auto'
             } transition-all duration-300 ${
               maximizedSection === 'left' ? 'w-full h-full' : 
@@ -1099,7 +1210,7 @@ const Dashboard = () => {
             }`}
             style={{ 
               width: maximizedSection === 'none' ? `${leftPanelWidth}px` : undefined,
-              height: isMobile && maximizedSection === 'left' ? '100%' : undefined
+              height: isMobile && maximizedSection === 'left' ? '100vh' : undefined
             }}
           >
             {/* Left Panel Header */}
@@ -1243,7 +1354,9 @@ const Dashboard = () => {
                     className="flex-1 overflow-y-auto px-4 pb-4"
                     style={{ 
                       WebkitOverflowScrolling: 'touch',
-                      height: isMobile ? 'calc(100vh - 250px)' : 'auto'
+                      height: isMobile && maximizedSection === 'left' ? 'calc(100vh - 200px)' : 
+                             isMobile ? 'calc(50vh - 100px)' : 'auto',
+                      minHeight: isMobile ? '300px' : 'auto'
                     }}
                   >
                     <div className="space-y-2">
@@ -1296,80 +1409,41 @@ const Dashboard = () => {
           isMobile ? (maximizedSection === 'chat' || maximizedSection === 'left' ? 'hidden' : 'flex-1 order-1') :
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
-        } bg-gray-900 flex flex-col relative ${
-          isMobile && maximizedSection !== 'chat' && maximizedSection !== 'left' ? (orientation === 'landscape' ? 'min-h-[300px]' : 'min-h-[400px]') : ''
-        } ${isMobile ? 'pt-2' : ''}`}
+        } bg-gray-900 flex flex-col relative ${isMobile ? 'pt-2' : ''}`}
         style={showN8nWorkflow && !isMobile ? { 
           width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
           minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
           maxWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`
-        } : {}}>
+        } : isMobile ? (maximizedSection === 'graph' ? { height: '90vh' } : { height: '60vh' }) : {}}>
           
-          {/* Graph Header - Mobile only for regular flows */}
-          {isMobile && !showN8nWorkflow && (
-            <div className="bg-gray-800 border-b border-gray-700 px-3 py-2 flex items-center justify-between flex-shrink-0 relative z-40">
-              <div className="flex items-center gap-2">
-                {activeTab === 'flows' ? (
-                  <Network size={18} className="text-green-400" />
-                ) : (
-                  <Bot size={18} className="text-purple-400" />
-                )}
-                <div>
-                  <h3 className="text-sm font-semibold text-white">
-                    {selectedItem ? formatName(String(selectedItem?.name || '')) : formatName(activeTab)}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    {selectedItem ? String(selectedItem?.description || '') : `View ${activeTab}`}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setMaximizedSection('left')}
-                className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-                title="Browse all items"
-              >
-                <Search size={16} className="text-gray-400" />
-              </button>
-            </div>
-          )}
 
-          {/* Graph Control Buttons */}
-          <div className={`absolute top-2 right-2 z-20 flex gap-2 ${
-            isMobile ? 'gap-1' : 'gap-2'
-          }`}>
-            {/* Fit Button */}
-            <button
-              onClick={() => {
-                console.log('Fit button clicked, graphRef:', graphRef.current);
-                if (graphRef.current?.fitView) {
-                  graphRef.current.fitView();
-                } else {
-                  console.warn('fitView method not available on graphRef');
-                }
-              }}
-              className={`${
-                isMobile 
-                  ? 'bg-gray-700 hover:bg-gray-600 rounded-full p-3 shadow-lg border-2 border-gray-500 min-w-[44px] min-h-[44px] flex items-center justify-center' 
-                  : 'bg-gray-800/80 hover:bg-gray-700 rounded-lg p-2'
-              } transition-colors flex items-center gap-2`}
-              title="Fit Graph to View"
-            >
-              <Maximize size={isMobile ? 18 : 16} className={isMobile ? 'text-white' : ''} />
-            </button>
+
+          
+          <div className="flex-1 w-full relative">
+            {/* Desktop maximize button - top right corner */}
+            {!isMobile && !showN8nWorkflow && (
+              <div className="absolute top-4 right-4 z-10 flex gap-2">
+                <button
+                  onClick={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
+                  className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors shadow-lg"
+                  title={maximizedSection === 'graph' ? 'Restore' : 'Maximize Graph'}
+                >
+                  {maximizedSection === 'graph' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </div>
+            )}
             
-            {/* Maximize Button - Hide on mobile */}
-            {!isMobile && (
+            {/* Mobile maximize button - smaller, different position */}
+            {isMobile && (
               <button
                 onClick={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
-                className="p-2 bg-gray-800/80 hover:bg-gray-700 rounded-lg transition-colors"
-                title={maximizedSection === 'graph' ? 'Restore' : 'Maximize Graph'}
+                className="absolute top-2 right-2 z-10 w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/80 hover:bg-gray-600/90 shadow-lg"
+                title={maximizedSection === 'graph' ? 'Minimize graph' : 'Maximize graph'}
               >
-                {maximizedSection === 'graph' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                {maximizedSection === 'graph' ? <Minimize2 size={12} className="text-gray-300" /> : <Maximize2 size={12} className="text-gray-300" />}
               </button>
             )}
-          </div>
-
-          <div className="flex-1 w-full">
+            
             {showN8nWorkflow && n8nWorkflow ? (
               <N8nWorkflowViewer
                 ref={graphRef}
@@ -1390,6 +1464,8 @@ const Dashboard = () => {
                 selectedItem={selectedItem}
                 selectedNode={selectedNode}
                 onNodeSelect={(node) => setSelectedNode(node)}
+                maximizedSection={maximizedSection}
+                onMaximizeToggle={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
               />
             )}
           </div>
@@ -1400,9 +1476,9 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Right Sidebar - Chat - Always visible when n8n is shown (30% width) */}
+        {/* Right Sidebar - Chat */}
         <div className={`${
-          isMobile ? (maximizedSection === 'left' ? 'hidden' : 'order-2 border-t') :
+          isMobile ? (maximizedSection === 'chat' || maximizedSection === 'graph' ? 'hidden' : 'order-2 border-t') :
           (!showN8nWorkflow && (maximizedSection === 'left' || maximizedSection === 'graph')) ? 'hidden' : 
           maximizedSection === 'chat' ? 'flex-1' : ''
         } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
@@ -1412,7 +1488,7 @@ const Dashboard = () => {
           isMobile ? 
             (maximizedSection === 'chat' ? 
               { height: orientation === 'landscape' ? '50vh' : '70vh' } : 
-              { height: orientation === 'landscape' ? '200px' : '300px' }
+              { height: '20vh' }
             ) : 
           showN8nWorkflow && !isMobile ? {
             width: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
@@ -1466,11 +1542,16 @@ const Dashboard = () => {
           )}
 
           {/* Messages */}
-          <div className={`flex-1 overflow-y-auto space-y-4 ${
-            isMobile ? 'p-2' : 'p-4'
-          } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''} ${
-            isMobile && maximizedSection === 'chat' ? 'pb-32' : ''
-          }`}>
+          <div 
+            className={`flex-1 overflow-y-auto space-y-4 ${
+              isMobile ? 'p-2' : 'p-4'
+            } ${isMobile && orientation === 'landscape' ? 'max-h-96' : ''}`}
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              paddingBottom: isMobile && maximizedSection === 'chat' ? '100px' : '20px',
+              height: isMobile && maximizedSection === 'chat' ? '90vh' : 'auto'
+            }}
+          >
             {messages.map((message) => (
               <div
                 key={String(message.id || Math.random())}
@@ -1552,80 +1633,29 @@ const Dashboard = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Mobile Chat Controls */}
-          {isMobile && maximizedSection !== 'chat' && (
-            <div className="absolute top-2 right-2 z-10 flex gap-2">
+          {/* Mobile Chat Controls - Always visible on mobile */}
+          {isMobile && (
+            <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
               {/* New Chat Button */}
               <button
                 onClick={() => createNewChat()}
-                className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/80 hover:bg-blue-700/90 shadow-lg"
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/90 hover:bg-blue-700/95 shadow-lg border-2 border-blue-400/20"
                 title="Start new chat"
               >
-                <Plus size={12} className="text-white" />
+                <Plus size={16} className="text-white" />
               </button>
               
-              {/* Maximize Button */}
+              {/* Maximize/Minimize Button */}
               <button
-                onClick={() => setMaximizedSection('chat')}
-                className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/80 hover:bg-gray-600/90 shadow-lg"
-                title="Maximize chat"
+                onClick={() => setMaximizedSection(maximizedSection === 'chat' ? 'none' : 'chat')}
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/90 hover:bg-gray-600/95 shadow-lg border-2 border-gray-500/20"
+                title={maximizedSection === 'chat' ? 'Minimize chat' : 'Maximize chat'}
               >
-                <Maximize2 size={12} className="text-white" />
+                {maximizedSection === 'chat' ? <Minimize2 size={16} className="text-white" /> : <Maximize2 size={16} className="text-white" />}
               </button>
             </div>
           )}
 
-          {/* Chat Input */}
-          <div className={`border-t border-white/10 flex-shrink-0 ${
-            isMobile ? 'p-2' : 'p-4'
-          } ${isMobile && maximizedSection === 'chat' ? 'fixed left-0 right-0 bg-gray-900/95 backdrop-blur-sm z-50 mobile-chat-input' : ''}`}
-          style={isMobile && maximizedSection === 'chat' ? {
-            bottom: 'max(env(safe-area-inset-bottom, 80px), 80px)'
-          } : {}}>
-            {/* Mobile Chat Controls when maximized */}
-            {isMobile && maximizedSection === 'chat' && (
-              <div className="flex justify-end gap-2 mb-2">
-                <button
-                  onClick={() => createNewChat()}
-                  className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/80 hover:bg-blue-700/90 shadow-lg"
-                  title="Start new chat"
-                >
-                  <Plus size={12} className="text-white" />
-                </button>
-                <button
-                  onClick={() => setMaximizedSection('none')}
-                  className="w-6 h-6 rounded-full transition-all duration-200 flex items-center justify-center bg-purple-500 hover:bg-purple-600 shadow-lg"
-                  title="Restore chat"
-                >
-                  <Minimize2 size={12} className="text-white" />
-                </button>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder={isMobile ? "Ask me..." : "Ask me anything..."}
-                disabled={isStreaming}
-                className={`flex-1 bg-white/10 border border-white/20 rounded-xl px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 backdrop-blur-sm placeholder-gray-400 disabled:opacity-50 ${
-                  isMobile ? 'min-h-[44px]' : ''
-                }`}
-                style={{ touchAction: 'manipulation', fontSize: isMobile ? '16px' : undefined }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={isStreaming || !chatInput.trim()}
-                className={`bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 shadow-lg hover:shadow-purple-500/25 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isMobile ? 'px-3 py-2 min-w-[44px] min-h-[44px]' : 'px-4 py-3'
-                }`}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Send size={isMobile ? 14 : 16} />
-              </button>
-            </div>
-          </div>
 
           {/* Resize Handle */}
           {maximizedSection === 'none' && !isMobile && (
@@ -1635,12 +1665,99 @@ const Dashboard = () => {
             />
           )}
         </div>
+
+        {/* Mobile Chat Section - Only visible when chat is maximized */}
+        {isMobile && maximizedSection === 'chat' && (
+          <div className="fixed top-0 left-0 right-0 bottom-0 z-30 bg-gray-900 flex flex-col" style={{ paddingTop: '80px' }}>
+            {/* Mobile Chat Controls - Same position as non-maximized */}
+            <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
+              {/* New Chat Button */}
+              <button
+                onClick={() => createNewChat()}
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/90 hover:bg-blue-700/95 shadow-lg border-2 border-blue-400/20"
+                title="Start new chat"
+              >
+                <Plus size={16} className="text-white" />
+              </button>
+              
+              {/* Minimize Button */}
+              <button
+                onClick={() => setMaximizedSection('none')}
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/90 hover:bg-gray-600/95 shadow-lg border-2 border-gray-500/20"
+                title="Minimize chat"
+              >
+                <Minimize2 size={16} className="text-white" />
+              </button>
+            </div>
+            
+            {/* Messages - Full height with proper scrolling */}
+            <div 
+              className="flex-1 overflow-y-scroll p-4 space-y-4"
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                paddingBottom: '120px'
+              }}
+            >
+              {messages.map((message) => (
+                <div
+                  key={String(message.id || Math.random())}
+                  className={`flex gap-2 md:gap-3 ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  {message.sender === 'assistant' && (
+                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 w-6 h-6">
+                      <Bot size={12} className="text-white" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] p-3 rounded-2xl ${
+                    message.sender === 'user'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white ml-auto'
+                      : 'bg-gray-800/80 text-gray-100 border border-gray-700'
+                  }`}>
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.text}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                  {message.sender === 'user' && (
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center flex-shrink-0 w-6 h-6">
+                      <User size={12} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              {isStreaming && (
+                <div className="flex items-center gap-2">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0 w-6 h-6">
+                    <Bot size={12} className="text-white" />
+                  </div>
+                  <div className="bg-gray-800/80 text-gray-100 border border-gray-700 p-3 rounded-2xl">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-pink-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Keys Manager Modal */}
       {showKeysManager && (
         <KeysManager onClose={() => setShowKeysManager(false)} />
       )}
+
+      {/* Persistent Chat Input - Always visible */}
+      <ChatInput
+        onSendMessage={sendMessage}
+        isStreaming={isStreaming}
+        disabled={!user?.sub}
+        placeholder={isMobile ? "Ask me..." : "Ask me anything..."}
+      />
     </div>
     </>
   );
