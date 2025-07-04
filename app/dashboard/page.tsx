@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe, Zap } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
 import N8nWorkflowViewer from '../components/N8nWorkflowViewer';
 import KeysManager from '../components/KeysManager';
@@ -1035,9 +1035,7 @@ const Dashboard = () => {
               flex items-center gap-1 md:gap-2 overflow-hidden
               bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 hover:scale-105"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
-              <path d="M8 0L0 8l8 8 8-8-8-8z" fill="currentColor"/>
-            </svg>
+            <Zap size={16} className="text-white" />
             <span className="relative z-10">n8n</span>
           </button>
 
@@ -1145,7 +1143,7 @@ const Dashboard = () => {
                   }}
                   className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 shadow-lg"
                 >
-                  <Globe size={20} className="text-orange-400" />
+                  <Zap size={20} className="text-orange-400" />
                   n8n Workflows
                 </button>
                 

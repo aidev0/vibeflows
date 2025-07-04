@@ -73,28 +73,20 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
         onClick={() => onNodeSelect(node)}
       >
         {isMobile ? (
-          // Mobile: Only show name with bigger font
-          <div className="flex items-center justify-center h-full">
-            <h4 className="font-bold text-xl text-white text-center break-words leading-tight px-2">{nodeName}</h4>
+          // Mobile: Show icon to left of name
+          <div className="flex items-center justify-center h-full gap-3 px-2">
+            {nodeType === 'agent' ? <Bot size={28} className="text-purple-300 flex-shrink-0" /> : 
+             nodeType === 'flow' ? <GitBranch size={28} className="text-green-300 flex-shrink-0" /> :
+             <span className="text-blue-300 font-bold text-2xl flex-shrink-0">f</span>}
+            <h4 className="font-bold text-lg text-white text-center break-words leading-tight flex-1">{nodeName}</h4>
           </div>
         ) : (
           // Desktop: Show full layout
           <>
             <div className="flex items-center gap-3 mb-3">
-              <div className={`p-2 rounded-lg ${
-                nodeType === 'agent' ? 'bg-gradient-to-r from-purple-500 to-pink-500' :
-                nodeType === 'flow' ? 'bg-gradient-to-r from-green-500 to-emerald-500' :
-                'bg-gradient-to-r from-blue-500 to-cyan-500'
-              }`}>
-                {nodeType === 'agent' ? <Bot size={16} className="text-white" /> : 
-                 nodeType === 'flow' ? <GitBranch size={16} className="text-white" /> :
-                 <svg width="16" height="16" viewBox="0 0 16 16" className="text-white">
-                   <path
-                     d="M8.5 2C10 2 11 3 11 4.5S10 7 8.5 7H7v1h3c0.3 0 0.5 0.2 0.5 0.5S10.3 9 10 9H7v4c0 1.5-0.8 2.5-2 3-0.3 0.1-0.6-0.1-0.6-0.4 0-0.2 0.1-0.3 0.3-0.4C5.5 14.8 6 14.2 6 13V5c0-1.7 1.3-3 3-3h2.5c0.3 0 0.5 0.2 0.5 0.5S11.8 3 11.5 3H8.5C7.7 3 7 3.7 7 4.5V6h1.5C9.3 6 10 5.3 10 4.5S9.3 3 8.5 3z"
-                     fill="currentColor"
-                   />
-                 </svg>}
-              </div>
+              {nodeType === 'agent' ? <Bot size={20} className="text-purple-300" /> : 
+               nodeType === 'flow' ? <GitBranch size={20} className="text-green-300" /> :
+               <span className="text-blue-300 font-bold text-lg">f</span>}
               <div className="flex-1 min-w-0">
                 <h4 className="font-semibold text-sm text-white break-words leading-tight">{nodeName}</h4>
               </div>

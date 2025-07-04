@@ -291,9 +291,7 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
     return (
       <div className="h-full w-full bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <svg width="64" height="64" viewBox="0 0 64 64" className="text-orange-500 mx-auto mb-4">
-            <path d="M32 0L0 32l32 32 32-32L32 0z" fill="currentColor"/>
-          </svg>
+          <Zap size={64} className="text-orange-500 mx-auto mb-4" />
           <h3 className="text-white font-semibold mb-2">No Workflow Data</h3>
           <p className="text-gray-400">This workflow doesn't contain node data</p>
         </div>
