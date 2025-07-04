@@ -1616,8 +1616,8 @@ const Dashboard = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Mobile Chat Controls - Always visible on mobile */}
-          {isMobile && (
+          {/* Mobile Chat Controls - Visible on mobile when chat is not maximized */}
+          {isMobile && maximizedSection !== 'chat' && (
             <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
               {/* New Chat Button */}
               <button

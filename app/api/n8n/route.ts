@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
 import { getSession } from '@auth0/nextjs-auth0';
 
+// Force this route to be dynamic
+export const dynamic = 'force-dynamic';
+
 // GET /api/n8n - Fetch workflows from database
 export async function GET(request: Request) {
   console.log('=== N8N API ENDPOINT HIT ===');
