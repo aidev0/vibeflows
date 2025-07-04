@@ -558,10 +558,27 @@ const Dashboard = () => {
   };
 
   const loadN8nWorkflow = async () => {
-    // Simply switch to n8n tab - let the normal useEffect handle loading
+    // Switch to n8n tab and load latest workflow
     setActiveTab('n8n');
     setSelectedItem(null);
     setSelectedNode(null);
+    
+    // Load latest n8n workflow and auto-select it
+    if (user?.sub) {
+      try {
+        const data = await API.getN8nWorkflows(user.sub);
+        const workflows = Array.isArray(data) ? data : [];
+        setN8nWorkflows(workflows);
+        
+        // Auto-select the latest (first) workflow
+        if (workflows.length > 0) {
+          setSelectedItem(workflows[0]);
+          console.log('Auto-selected latest n8n workflow:', workflows[0].name);
+        }
+      } catch (error) {
+        console.error('Error loading n8n workflows:', error);
+      }
+    }
   };
 
 
@@ -959,14 +976,14 @@ const Dashboard = () => {
             <button
               key={t}
               onClick={() => {
-                setActiveTab(t as any);
-                setSelectedItem(null);
-                setSelectedNode(null);
-                setIsMobileMenuOpen(false);
-                // If n8n tab is clicked, load the workflows
                 if (t === 'n8n') {
                   loadN8nWorkflow();
+                } else {
+                  setActiveTab(t as any);
+                  setSelectedItem(null);
+                  setSelectedNode(null);
                 }
+                setIsMobileMenuOpen(false);
               }}
               className={`
                 group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
@@ -1066,16 +1083,19 @@ const Dashboard = () => {
                 <button
                   key={t}
                   onClick={() => {
-                    setActiveTab(t as any);
-                    setSelectedItem(null);
-                    setSelectedNode(null);
-                    // If n8n tab is clicked, load the workflows
                     if (t === 'n8n') {
                       loadN8nWorkflow();
+                    } else {
+                      setActiveTab(t as any);
+                      setSelectedItem(null);
+                      setSelectedNode(null);
                     }
+                    
                     if (isMobile) {
-                      // In mobile, show the left panel with items to choose from
-                      setMaximizedSection('left');
+                      // In mobile, show the left panel with items to choose from (except for n8n which auto-selects)
+                      if (t !== 'n8n') {
+                        setMaximizedSection('left');
+                      }
                       setIsMobileMenuOpen(false);
                     } else {
                       setIsMobileMenuOpen(false);
