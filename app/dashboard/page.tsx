@@ -1744,7 +1744,7 @@ const Dashboard = () => {
             {/* Chat Input - Fixed at bottom */}
             <div className="flex-shrink-0">
               <ChatInput
-                onSendMessage={handleSendMessage}
+                onSendMessage={sendMessage}
                 isStreaming={isStreaming}
                 disabled={!currentChat}
                 placeholder={currentChat ? "Type your message..." : "Create a chat to start messaging"}
