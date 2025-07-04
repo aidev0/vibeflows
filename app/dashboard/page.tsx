@@ -1167,7 +1167,7 @@ const Dashboard = () => {
       )}
       
 
-      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`} style={{ paddingBottom: '80px' }}>
+      <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`} style={{ paddingBottom: isMobile ? '80px' : '90px' }}>
         {/* Left Sidebar - Flows/Agents List */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
@@ -1616,8 +1616,8 @@ const Dashboard = () => {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Mobile Chat Controls - Visible on mobile when chat is not maximized */}
-          {isMobile && maximizedSection !== 'chat' && (
+          {/* Mobile Chat Controls - Always visible on mobile */}
+          {isMobile && (
             <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
               {/* New Chat Button */}
               <button
@@ -1651,7 +1651,7 @@ const Dashboard = () => {
 
         {/* Mobile Chat Section - Only visible when chat is maximized */}
         {isMobile && maximizedSection === 'chat' && (
-          <div className="fixed inset-0 z-30 bg-gray-900 flex flex-col" style={{ height: '100dvh', maxHeight: '100dvh' }}>
+          <div className="fixed inset-0 z-40 bg-gray-900 flex flex-col" style={{ height: '100dvh', maxHeight: '100dvh' }}>
             {/* Header with controls */}
             <div className="flex-shrink-0 flex items-center justify-between p-4 bg-gray-800/90 border-b border-gray-700" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
               <h3 className="text-white font-semibold">Chat</h3>
@@ -1735,6 +1735,27 @@ const Dashboard = () => {
                 placeholder={currentChat ? "Type your message..." : "Create a chat to start messaging"}
                 isChatMaximized={true}
               />
+            </div>
+            
+            {/* Mobile Chat Controls - Also show when maximized */}
+            <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
+              {/* New Chat Button */}
+              <button
+                onClick={() => createNewChat()}
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/90 hover:bg-blue-700/95 shadow-lg border-2 border-blue-400/20"
+                title="Start new chat"
+              >
+                <Plus size={16} className="text-white" />
+              </button>
+              
+              {/* Maximize/Minimize Button */}
+              <button
+                onClick={() => setMaximizedSection('none')}
+                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/90 hover:bg-gray-600/95 shadow-lg border-2 border-gray-500/20"
+                title="Minimize chat"
+              >
+                <Minimize2 size={16} className="text-white" />
+              </button>
             </div>
           </div>
         )}
