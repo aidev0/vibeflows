@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe, Zap } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe, Zap, ExternalLink } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
 import N8nWorkflowViewer from '../components/N8nWorkflowViewer';
 import KeysManager from '../components/KeysManager';
@@ -70,17 +70,24 @@ const API = {
     });
     return response.json();
   },
+  getN8nWorkflows: async (userId?: string) => {
+    const response = await fetch('/api/n8n?action=list_workflows');
+    return response.json();
+  },
+  getN8nWorkflowById: async (workflowId: string) => {
+    const response = await fetch(`/api/n8n?action=get_workflow&workflow_id=${workflowId}`);
+    return response.json();
+  },
 };
 
 const Dashboard = () => {
   const { user, isLoading, error } = useUser();
-  const [activeTab, setActiveTab] = useState<'flows' | 'agents'>('flows');
+  const [activeTab, setActiveTab] = useState<'flows' | 'agents' | 'n8n'>('flows');
   const [flows, setFlows] = useState<any[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
+  const [n8nWorkflows, setN8nWorkflows] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [selectedNode, setSelectedNode] = useState<any | null>(null);
-  const [showN8nWorkflow, setShowN8nWorkflow] = useState(false);
-  const [n8nWorkflow, setN8nWorkflow] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showKeysManager, setShowKeysManager] = useState(false);
@@ -216,6 +223,7 @@ const Dashboard = () => {
     setSelectedItem(null);
     setFlows([]);
     setAgents([]);
+    setN8nWorkflows([]);
     
     // Small delay to ensure state is reset
     setTimeout(async () => {
@@ -224,9 +232,14 @@ const Dashboard = () => {
           console.log('🔄 Fetching fresh data for activeTab:', activeTab);
           console.log('🔄 User ID:', user?.sub);
           
-          const data = activeTab === 'flows' 
-            ? await API.getFlows(user?.sub || undefined) 
-            : await API.getAgents();
+          let data;
+          if (activeTab === 'flows') {
+            data = await API.getFlows(user?.sub || undefined);
+          } else if (activeTab === 'agents') {
+            data = await API.getAgents();
+          } else if (activeTab === 'n8n') {
+            data = await API.getN8nWorkflows(user?.sub || undefined);
+          }
             
           console.log('🔄 Fresh data received:', data);
           const arrayData = Array.isArray(data) ? data : [];
@@ -234,9 +247,12 @@ const Dashboard = () => {
           if (activeTab === 'flows') {
             setFlows(arrayData);
             console.log('🔄 Flows set to:', arrayData.length, 'items');
-          } else {
+          } else if (activeTab === 'agents') {
             setAgents(arrayData);
             console.log('🔄 Agents set to:', arrayData.length, 'items');
+          } else if (activeTab === 'n8n') {
+            setN8nWorkflows(arrayData);
+            console.log('🔄 N8n workflows set to:', arrayData.length, 'items');
           }
           
           if (arrayData.length > 0) {
@@ -295,7 +311,11 @@ const Dashboard = () => {
     return name
       .replace(/_/g, ' ')
       .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map(word => {
+        // Special case for n8n - keep it lowercase
+        if (word.toLowerCase() === 'n8n') return 'n8n';
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
       .join(' ');
   };
 
@@ -342,10 +362,25 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const data = activeTab === 'flows' ? await API.getFlows(user?.sub || undefined) : await API.getAgents();
+        let data;
+        if (activeTab === 'flows') {
+          data = await API.getFlows(user?.sub || undefined);
+        } else if (activeTab === 'agents') {
+          data = await API.getAgents();
+        } else if (activeTab === 'n8n') {
+          data = await API.getN8nWorkflows(user?.sub || undefined);
+        }
+        
         console.log(`${activeTab} API response:`, data, 'Type:', typeof data, 'IsArray:', Array.isArray(data));
         const arrayData = Array.isArray(data) ? data : [];
-        activeTab === 'flows' ? setFlows(arrayData) : setAgents(arrayData);
+        
+        if (activeTab === 'flows') {
+          setFlows(arrayData);
+        } else if (activeTab === 'agents') {
+          setAgents(arrayData);
+        } else if (activeTab === 'n8n') {
+          setN8nWorkflows(arrayData);
+        }
         
         // Auto-select latest flow for current user
         if (activeTab === 'flows' && user?.sub && arrayData.length > 0) {
@@ -411,7 +446,7 @@ const Dashboard = () => {
   }, [activeTab, isMobile, user?.sub]);
 
 
-  const items = activeTab === 'flows' ? flows : agents;
+  const items = activeTab === 'flows' ? flows : activeTab === 'agents' ? agents : n8nWorkflows;
   const filtered = (Array.isArray(items) ? items : []).filter((i) =>
     String(i.name || '').toLowerCase().includes(search.toLowerCase()) ||
     String(i.description || '').toLowerCase().includes(search.toLowerCase())
@@ -523,84 +558,12 @@ const Dashboard = () => {
   };
 
   const loadN8nWorkflow = async () => {
-    if (!user?.sub) {
-      alert('Please log in to view n8n workflows');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      console.log('Loading n8n workflows from database...');
-      console.log('User ID:', user.sub);
-      
-      // Get workflows from database (n8n_workflows collection)
-      const workflowsResponse = await fetch('/api/n8n?action=db_workflows', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Response status:', workflowsResponse.status);
-      console.log('Response headers:', Object.fromEntries(workflowsResponse.headers.entries()));
-      
-      if (!workflowsResponse.ok) {
-        const responseText = await workflowsResponse.text();
-        console.log('Error response text:', responseText);
-        console.log('Response status:', workflowsResponse.status);
-        console.log('Response statusText:', workflowsResponse.statusText);
-        
-        if (workflowsResponse.status === 401) {
-          alert('Authentication error. Please refresh the page and try again.');
-          return;
-        }
-        
-        throw new Error(`HTTP ${workflowsResponse.status}: ${responseText}`);
-      }
-      
-      const workflowsResult = await workflowsResponse.json();
-      
-      console.log('Database n8n workflows:', workflowsResult);
-      
-      if (workflowsResult.data && workflowsResult.data.length > 0) {
-        // Get the most recent workflow (or first one)
-        const latestWorkflow = workflowsResult.data[0];
-        console.log('Selected latest workflow:', latestWorkflow);
-        
-        // Use the workflow_json directly - it contains nodes and connections
-        const workflowData = {
-          name: latestWorkflow.name,
-          workflow_json: latestWorkflow.workflow_json
-        };
-        
-        setN8nWorkflow(workflowData);
-        setShowN8nWorkflow(true);
-        
-        // Set n8n mode layout: hide left panel, 70% graph, 30% chat
-        setMaximizedSection('none');
-        if (!isMobile && typeof window !== 'undefined') {
-          setLeftPanelWidth(0); // Hide left panel completely
-          setChatPanelWidth(window.innerWidth * 0.3); // 30% for chat
-        }
-      }
-      // If no workflows found, do nothing - don't show anything
-    } catch (error) {
-      console.error('Error loading n8n workflows:', error);
-      console.error('Error details:', {
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-        name: (error as Error).name
-      });
-      // Show user-friendly error message
-      const errorMessage = (error as Error).message.includes('HTML') || (error as Error).message.includes('<!DOCTYPE') 
-        ? 'Authentication error - please refresh the page and try again'
-        : (error as Error).message;
-      
-      alert(`Error loading n8n workflows: ${errorMessage}`);
-    } finally {
-      setLoading(false);
-    }
+    // Simply switch to n8n tab - let the normal useEffect handle loading
+    setActiveTab('n8n');
+    setSelectedItem(null);
+    setSelectedNode(null);
   };
+
 
   const sendMessage = async (messageText: string) => {
     if (messageText.trim() && !isStreaming) {
@@ -983,14 +946,16 @@ const Dashboard = () => {
         {isMobile && (
           <div className="flex-1 text-center px-4">
             <h1 className="text-xs sm:text-sm md:text-base font-semibold text-white truncate">
-              {selectedItem?.name ? formatName(selectedItem.name) : activeTab === 'flows' ? 'Flows' : 'Agents'}
+              {selectedItem?.name ? formatName(selectedItem.name) : 
+               activeTab === 'flows' ? 'Flows' : 
+               activeTab === 'agents' ? 'Agents' : 'n8n Workflows'}
             </h1>
           </div>
         )}
         
         {/* Tab Navigation - Hidden on mobile, shown in sidebar */}
         <div className={`${isMobile ? 'hidden' : 'flex'} gap-2`}>
-          {['flows', 'agents'].map((t) => (
+          {['flows', 'agents', 'n8n'].map((t) => (
             <button
               key={t}
               onClick={() => {
@@ -998,6 +963,10 @@ const Dashboard = () => {
                 setSelectedItem(null);
                 setSelectedNode(null);
                 setIsMobileMenuOpen(false);
+                // If n8n tab is clicked, load the workflows
+                if (t === 'n8n') {
+                  loadN8nWorkflow();
+                }
               }}
               className={`
                 group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
@@ -1005,10 +974,14 @@ const Dashboard = () => {
                 ${activeTab === t 
                   ? t === 'flows'
                     ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
-                    : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg shadow-purple-500/30 scale-105'
+                    : t === 'agents'
+                    ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-lg shadow-purple-500/30 scale-105'
+                    : 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 scale-105'
                   : t === 'flows'
                     ? 'bg-gray-700/50 text-gray-300 hover:bg-emerald-600/20 hover:text-emerald-300 hover:scale-102 border border-emerald-500/20'
-                    : 'bg-gradient-to-r from-purple-500 to-purple-400 text-white hover:bg-gradient-to-r hover:from-purple-400 hover:to-purple-300 hover:text-white hover:scale-105 border-2 border-purple-400 hover:border-purple-300 transition-all duration-300'
+                    : t === 'agents'
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-400 text-white hover:bg-gradient-to-r hover:from-purple-400 hover:to-purple-300 hover:text-white hover:scale-105 border-2 border-purple-400 hover:border-purple-300 transition-all duration-300'
+                    : 'bg-gradient-to-r from-orange-500/50 to-red-500/50 text-white hover:bg-gradient-to-r hover:from-orange-400 hover:to-red-400 hover:text-white hover:scale-105 border-2 border-orange-400/50 hover:border-orange-300 transition-all duration-300'
                 }
               `}
             >
@@ -1016,9 +989,13 @@ const Dashboard = () => {
                 <Network size={16} className={`transition-transform duration-300 ${
                   activeTab === t ? 'text-white' : 'text-emerald-400 group-hover:text-emerald-300'
                 }`} />
-              ) : (
+              ) : t === 'agents' ? (
                 <Bot size={16} className={`transition-transform duration-300 ${
                   activeTab === t ? 'text-white' : 'text-white'
+                }`} />
+              ) : (
+                <Zap size={16} className={`transition-transform duration-300 ${
+                  activeTab === t ? 'text-white' : 'text-orange-400 group-hover:text-orange-300'
                 }`} />
               )}
               
@@ -1027,18 +1004,6 @@ const Dashboard = () => {
               </span>
             </button>
           ))}
-          
-          {/* n8n Button */}
-          <button
-            onClick={loadN8nWorkflow}
-            className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
-              flex items-center gap-1 md:gap-2 overflow-hidden
-              bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg shadow-orange-500/30 hover:scale-105"
-          >
-            <Zap size={16} className="text-white" />
-            <span className="relative z-10">n8n</span>
-          </button>
-
           {/* Keys Button */}
           <button
             onClick={() => setShowKeysManager(true)}
@@ -1097,13 +1062,17 @@ const Dashboard = () => {
             
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4" style={{ WebkitOverflowScrolling: 'touch' }}>
               {/* Main Navigation */}
-              {['flows', 'agents'].map((t) => (
+              {['flows', 'agents', 'n8n'].map((t) => (
                 <button
                   key={t}
                   onClick={() => {
                     setActiveTab(t as any);
                     setSelectedItem(null);
                     setSelectedNode(null);
+                    // If n8n tab is clicked, load the workflows
+                    if (t === 'n8n') {
+                      loadN8nWorkflow();
+                    }
                     if (isMobile) {
                       // In mobile, show the left panel with items to choose from
                       setMaximizedSection('left');
@@ -1117,17 +1086,23 @@ const Dashboard = () => {
                     ${activeTab === t 
                       ? t === 'flows'
                         ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-emerald-500/30 border border-emerald-400/50'
-                        : 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-purple-500/50 border border-purple-400/50 ring-2 ring-purple-400/30'
-                      : t === 'agents'
+                        : t === 'agents'
+                        ? 'bg-gradient-to-r from-purple-500 to-violet-500 text-white shadow-purple-500/50 border border-purple-400/50 ring-2 ring-purple-400/30'
+                        : 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-orange-500/50 border border-orange-400/50 ring-2 ring-orange-400/30'
+                      : t === 'flows'
+                        ? 'bg-gray-700/50 text-gray-300 hover:bg-gray-600 border border-gray-600/50'
+                        : t === 'agents'
                         ? 'bg-gradient-to-r from-purple-600/20 to-violet-600/20 text-purple-200 hover:from-purple-500/30 hover:to-violet-500/30 border border-purple-500/30 hover:border-purple-400/50'
-                        : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600 border border-gray-600/50'
+                        : 'bg-gradient-to-r from-orange-600/20 to-red-600/20 text-orange-200 hover:from-orange-500/30 hover:to-red-500/30 border border-orange-500/30 hover:border-orange-400/50'
                     }
                   `}
                 >
                   {t === 'flows' ? (
                     <Network size={18} className={activeTab === t ? 'text-white' : 'text-emerald-400'} />
-                  ) : (
+                  ) : t === 'agents' ? (
                     <Bot size={18} className={activeTab === t ? 'text-white' : 'text-purple-300'} />
+                  ) : (
+                    <Zap size={18} className={activeTab === t ? 'text-white' : 'text-orange-300'} />
                   )}
                   {formatName(t.charAt(0).toUpperCase() + t.slice(1))}
                 </button>
@@ -1135,18 +1110,6 @@ const Dashboard = () => {
               
               {/* Action Buttons */}
               <div className="pt-4 border-t border-gray-700 space-y-4">
-                
-                <button
-                  onClick={() => {
-                    loadN8nWorkflow();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-orange-600/20 text-orange-200 hover:bg-orange-500/30 border border-orange-500/30 hover:border-orange-400/50 transition-all duration-300 shadow-lg"
-                >
-                  <Zap size={20} className="text-orange-400" />
-                  n8n Workflows
-                </button>
-                
                 <button
                   onClick={() => {
                     setShowKeysManager(true);
@@ -1185,13 +1148,13 @@ const Dashboard = () => {
       
 
       <div className={`${isMobile ? 'flex flex-col' : 'flex'} flex-1 overflow-hidden relative`} style={{ paddingBottom: '80px' }}>
-        {/* Left Sidebar - Flows/Agents List - Hidden when n8n is shown */}
+        {/* Left Sidebar - Flows/Agents List */}
         <div className={`${
           isMobile ? (maximizedSection === 'left' ? 'flex-1' : 'hidden') :
-          showN8nWorkflow || maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
+          maximizedSection === 'graph' || maximizedSection === 'chat' ? 'hidden' : 
           maximizedSection === 'left' ? 'flex-1' : ''
         } ${isMobile && maximizedSection === 'left' ? '' : 'border-r border-gray-700'} flex flex-col bg-gray-900`}
-        style={maximizedSection === 'left' || isMobile || showN8nWorkflow ? {} : { 
+        style={maximizedSection === 'left' || isMobile ? {} : { 
           width: `${leftPanelWidth}px`,
           minWidth: `${leftPanelWidth}px`,
           maxWidth: `${leftPanelWidth}px`
@@ -1225,8 +1188,8 @@ const Dashboard = () => {
                 )}
                 <h2 className="font-semibold text-white">
                   {selectedNode ? 'Node Details' : 
-                   isMobile && maximizedSection === 'left' ? `Choose ${formatName(activeTab)}` :
-                   formatName(activeTab)}
+                   isMobile && maximizedSection === 'left' ? `Choose ${formatName(activeTab === 'n8n' ? 'n8n Workflows' : activeTab)}` :
+                   formatName(activeTab === 'n8n' ? 'n8n Workflows' : activeTab)}
                 </h2>
               </div>
               <div className="flex gap-2">
@@ -1377,10 +1340,37 @@ const Dashboard = () => {
                         <div className="flex items-center gap-2">
                           {activeTab === 'flows' ? (
                             <Network size={16} className="text-green-400" />
-                          ) : (
+                          ) : activeTab === 'agents' ? (
                             <Bot size={16} className="text-purple-400" />
+                          ) : (
+                            <Zap size={16} className="text-orange-400" />
                           )}
-                          <span className="font-medium text-sm">{formatName(String(item?.name || ''))}</span>
+                          <span className="font-medium text-sm flex-1">{formatName(String(item?.name || ''))}</span>
+                          
+                          {/* Link button for n8n workflows */}
+                          {activeTab === 'n8n' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent selecting the item
+                                console.log('Clicked workflow item:', item);
+                                console.log('URL field:', item?.url);
+                                console.log('n8n_response:', item?.n8n_response);
+                                console.log('workflow_json:', item?.workflow_json);
+                                
+                                if (item?.url) {
+                                  console.log('Opening URL:', item.url);
+                                  window.open(item.url, '_blank', 'noopener,noreferrer');
+                                } else {
+                                  console.log('No URL available for workflow:', item);
+                                  alert('No n8n URL configured for this workflow. Check console for details.');
+                                }
+                              }}
+                              className="p-1 rounded hover:bg-gray-600 transition-colors"
+                              title={item?.url ? "Open in n8n" : "No n8n URL available"}
+                            >
+                              <ExternalLink size={14} className={item?.url ? "text-gray-300 hover:text-white" : "text-gray-500"} />
+                            </button>
+                          )}
                         </div>
                         <p className="text-xs text-gray-400 mt-1">{String(item?.description || '')}</p>
                       </div>
@@ -1408,18 +1398,14 @@ const Dashboard = () => {
           maximizedSection === 'left' || maximizedSection === 'chat' ? 'hidden' :
           maximizedSection === 'graph' ? 'flex-1' : 'flex-1'
         } bg-gray-900 flex flex-col relative ${isMobile ? 'pt-2' : ''}`}
-        style={showN8nWorkflow && !isMobile ? { 
-          width: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
-          minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`,
-          maxWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.7 : 1000}px`
-        } : isMobile ? (maximizedSection === 'graph' ? { height: '90vh' } : { height: '60vh' }) : {}}>
+        style={isMobile ? (maximizedSection === 'graph' ? { height: '90vh' } : { height: '60vh' }) : {}}>
           
 
 
           
           <div className="flex-1 w-full relative">
             {/* Desktop maximize button - top right corner */}
-            {!isMobile && !showN8nWorkflow && (
+            {!isMobile && (
               <div className="absolute top-4 right-4 z-10 flex gap-2">
                 <button
                   onClick={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
@@ -1442,30 +1428,14 @@ const Dashboard = () => {
               </button>
             )}
             
-            {showN8nWorkflow && n8nWorkflow ? (
-              <N8nWorkflowViewer
-                ref={graphRef}
-                workflow={n8nWorkflow}
-                onClose={() => {
-                  setShowN8nWorkflow(false);
-                  setN8nWorkflow(null);
-                  // Restore original layout
-                  if (!isMobile && typeof window !== 'undefined') {
-                    setLeftPanelWidth(window.innerWidth * 0.2);
-                    setChatPanelWidth(window.innerWidth * 0.4);
-                  }
-                }}
-              />
-            ) : (
-              <GraphPanel
-                ref={graphRef}
-                selectedItem={selectedItem}
-                selectedNode={selectedNode}
-                onNodeSelect={(node) => setSelectedNode(node)}
-                maximizedSection={maximizedSection}
-                onMaximizeToggle={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
-              />
-            )}
+            <GraphPanel
+              ref={graphRef}
+              selectedItem={selectedItem}
+              selectedNode={selectedNode}
+              onNodeSelect={(node) => setSelectedNode(node)}
+              maximizedSection={maximizedSection}
+              onMaximizeToggle={() => setMaximizedSection(maximizedSection === 'graph' ? 'none' : 'graph')}
+            />
           </div>
           
           {/* Mobile Vertical Resize Handle */}
@@ -1477,7 +1447,7 @@ const Dashboard = () => {
         {/* Right Sidebar - Chat */}
         <div className={`${
           isMobile ? (maximizedSection === 'chat' || maximizedSection === 'graph' ? 'hidden' : 'order-2 border-t') :
-          (!showN8nWorkflow && (maximizedSection === 'left' || maximizedSection === 'graph')) ? 'hidden' : 
+          (maximizedSection === 'left' || maximizedSection === 'graph') ? 'hidden' : 
           maximizedSection === 'chat' ? 'flex-1' : ''
         } ${isMobile ? 'border-gray-700' : 'border-l border-gray-700'} flex flex-col bg-white/5 backdrop-blur-sm relative ${
           isMobile ? 'w-full' : ''
@@ -1487,12 +1457,7 @@ const Dashboard = () => {
             (maximizedSection === 'chat' ? 
               { height: orientation === 'landscape' ? '50vh' : '70vh' } : 
               { height: '20vh' }
-            ) : 
-          showN8nWorkflow && !isMobile ? {
-            width: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
-            minWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`,
-            maxWidth: `${typeof window !== 'undefined' ? window.innerWidth * 0.3 : 400}px`
-          } : { 
+            ) : { 
             width: `${chatPanelWidth}px`,
             minWidth: `${chatPanelWidth}px`,
             maxWidth: `${chatPanelWidth}px`

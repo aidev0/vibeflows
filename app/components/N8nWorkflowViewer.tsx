@@ -97,9 +97,14 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
     return () => window.removeEventListener('resize', detectDevice);
   }, []);
   
-  // Expose fitView to parent component
+  // Expose fitView to parent component with better options
   useImperativeHandle(ref, () => ({
-    fitView
+    fitView: () => fitView({ 
+      padding: 0.1, 
+      includeHiddenNodes: false,
+      maxZoom: 1.2,
+      duration: 300
+    })
   }));
 
   // Extract n8n workflow data
@@ -284,7 +289,19 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
   useEffect(() => {
     setNodes(reactFlowNodes);
     setEdges(reactFlowEdges);
-  }, [reactFlowNodes, reactFlowEdges, setNodes, setEdges]);
+    
+    // Automatically fit view when nodes are loaded
+    if (reactFlowNodes.length > 0) {
+      setTimeout(() => {
+        fitView({ 
+          padding: 0.1, 
+          includeHiddenNodes: false,
+          maxZoom: 1.2,
+          duration: 300
+        });
+      }, 100);
+    }
+  }, [reactFlowNodes, reactFlowEdges, setNodes, setEdges, fitView]);
 
   // Handle empty workflow
   if (!n8nNodes.length) {
@@ -359,6 +376,12 @@ const N8nWorkflowContent = forwardRef<N8nWorkflowViewerRef, N8nWorkflowViewerPro
         nodeTypes={!isMobile ? nodeTypes : undefined}
         connectionLineType={ConnectionLineType.SmoothStep}
         fitView
+        fitViewOptions={{
+          padding: 0.1,
+          includeHiddenNodes: false,
+          maxZoom: 1.2,
+          duration: 300
+        }}
         style={{ background: '#111827' }}
         className="bg-gray-900"
       >

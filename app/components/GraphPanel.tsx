@@ -3,6 +3,7 @@
 import React, { forwardRef, useState, useEffect } from 'react';
 import { Network, GitBranch, Bot, Maximize2, Minimize2 } from 'lucide-react';
 import Graph from './graph';
+import N8nWorkflowViewer from './N8nWorkflowViewer';
 
 interface GraphPanelProps {
   selectedItem: any;
@@ -37,6 +38,11 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   };
+
+  // Check if this is an n8n workflow
+  const isN8nWorkflow = selectedItem?.type === 'n8n_workflow' || 
+                        selectedItem?.workflow_json || 
+                        selectedItem?.n8n_response;
 
   // Prepare data for the generic graph component
   const graphData = {
@@ -209,7 +215,7 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
   return (
     <div className="h-full w-full relative">
       {/* Desktop maximize button */}
-      {!isMobile && selectedItem && graphData.nodes.length > 0 && onMaximizeToggle && (
+      {!isMobile && selectedItem && (isN8nWorkflow || graphData.nodes.length > 0) && onMaximizeToggle && (
         <div className="absolute top-4 right-4 z-10">
           <button
             onClick={onMaximizeToggle}
@@ -224,8 +230,17 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
         </div>
       )}
       
-      {/* Graph component - only render if there's valid data */}
-      {selectedItem && graphData.nodes.length > 0 && (
+      {/* N8n Workflow Viewer - for n8n workflows */}
+      {selectedItem && isN8nWorkflow && (
+        <N8nWorkflowViewer
+          ref={ref}
+          workflow={selectedItem}
+          onClose={() => {}} // No close functionality needed here
+        />
+      )}
+      
+      {/* Graph component - only render if there's valid data and it's not an n8n workflow */}
+      {selectedItem && !isN8nWorkflow && graphData.nodes.length > 0 && (
         <Graph
           ref={ref}
           data={graphData}
@@ -240,7 +255,7 @@ const GraphPanel = forwardRef<{ fitView: () => void }, GraphPanelProps>(({ selec
       )}
       
       {/* Empty state */}
-      {(!selectedItem || !graphData.nodes.length) && emptyState}
+      {(!selectedItem || (!isN8nWorkflow && !graphData.nodes.length)) && emptyState}
     </div>
   );
 });
