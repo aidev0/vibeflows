@@ -1666,34 +1666,34 @@ const Dashboard = () => {
 
         {/* Mobile Chat Section - Only visible when chat is maximized */}
         {isMobile && maximizedSection === 'chat' && (
-          <div className="fixed top-0 left-0 right-0 bottom-0 z-30 bg-gray-900 flex flex-col" style={{ paddingTop: '80px' }}>
-            {/* Mobile Chat Controls - Same position as non-maximized */}
-            <div className="fixed bottom-20 right-4 z-50 flex flex-col gap-2">
-              {/* New Chat Button */}
-              <button
-                onClick={() => createNewChat()}
-                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/90 hover:bg-blue-700/95 shadow-lg border-2 border-blue-400/20"
-                title="Start new chat"
-              >
-                <Plus size={16} className="text-white" />
-              </button>
-              
-              {/* Minimize Button */}
-              <button
-                onClick={() => setMaximizedSection('none')}
-                className="w-10 h-10 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/90 hover:bg-gray-600/95 shadow-lg border-2 border-gray-500/20"
-                title="Minimize chat"
-              >
-                <Minimize2 size={16} className="text-white" />
-              </button>
+          <div className="fixed inset-0 z-30 bg-gray-900 flex flex-col" style={{ height: '100dvh', maxHeight: '100dvh' }}>
+            {/* Header with controls */}
+            <div className="flex-shrink-0 flex items-center justify-between p-4 bg-gray-800/90 border-b border-gray-700" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 16px)' }}>
+              <h3 className="text-white font-semibold">Chat</h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => createNewChat()}
+                  className="w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center bg-blue-600/90 hover:bg-blue-700/95 shadow-lg"
+                  title="Start new chat"
+                >
+                  <Plus size={14} className="text-white" />
+                </button>
+                <button
+                  onClick={() => setMaximizedSection('none')}
+                  className="w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center bg-gray-700/90 hover:bg-gray-600/95 shadow-lg"
+                  title="Minimize chat"
+                >
+                  <Minimize2 size={14} className="text-white" />
+                </button>
+              </div>
             </div>
             
-            {/* Messages - Full height with proper scrolling */}
+            {/* Messages - Flexible height with proper scrolling */}
             <div 
-              className="flex-1 overflow-y-scroll p-4 space-y-4"
+              className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0"
               style={{ 
                 WebkitOverflowScrolling: 'touch',
-                paddingBottom: '120px'
+                paddingBottom: '8px'
               }}
             >
               {messages.map((message) => (
@@ -1740,6 +1740,17 @@ const Dashboard = () => {
               )}
               <div ref={chatEndRef} />
             </div>
+            
+            {/* Chat Input - Fixed at bottom */}
+            <div className="flex-shrink-0">
+              <ChatInput
+                onSendMessage={handleSendMessage}
+                isStreaming={isStreaming}
+                disabled={!currentChat}
+                placeholder={currentChat ? "Type your message..." : "Create a chat to start messaging"}
+                isChatMaximized={true}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -1749,13 +1760,15 @@ const Dashboard = () => {
         <KeysManager onClose={() => setShowKeysManager(false)} />
       )}
 
-      {/* Persistent Chat Input - Always visible */}
-      <ChatInput
-        onSendMessage={sendMessage}
-        isStreaming={isStreaming}
-        disabled={!user?.sub}
-        placeholder={isMobile ? "Ask me..." : "Ask me anything..."}
-      />
+      {/* Persistent Chat Input - Only visible when chat is not maximized on mobile */}
+      {!(isMobile && maximizedSection === 'chat') && (
+        <ChatInput
+          onSendMessage={sendMessage}
+          isStreaming={isStreaming}
+          disabled={!user?.sub}
+          placeholder={isMobile ? "Ask me..." : "Ask me anything..."}
+        />
+      )}
     </div>
     </>
   );

@@ -55,14 +55,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className={`
-      fixed bottom-0 left-0 right-0 z-40
+      ${isChatMaximized && isMobile ? 'relative' : 'fixed bottom-0 left-0 right-0 z-40'}
       bg-gradient-to-t from-gray-900 via-gray-800/95 to-gray-800/80 
       backdrop-blur-sm border-t border-gray-600/50
       ${isMobile ? 'p-3' : 'p-6'}
     `}
     style={{
       paddingBottom: isMobile ? 'calc(env(safe-area-inset-bottom, 0px) + 12px)' : '24px',
-      boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.4)'
+      boxShadow: isChatMaximized && isMobile ? 'none' : '0 -8px 32px rgba(0, 0, 0, 0.4)'
     }}
     >
       <div className="max-w-5xl mx-auto">
