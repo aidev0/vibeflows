@@ -41,6 +41,13 @@ const API = {
     const response = await fetch(`/api/messages?chatId=${chatId}`);
     return response.json();
   },
+  ensureUser: async () => {
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return response.json();
+  },
   callAIAutomation: async (user_query: string, chat_id?: string, user_id?: string) => {
     console.log('=== CALLING AI AUTOMATION ENDPOINT ===');
     console.log('user_query:', user_query);
@@ -459,10 +466,14 @@ const Dashboard = () => {
       return;
     }
 
-    // Step 2: User authenticated - start loading latest chat
+    // Step 2: User authenticated - ensure user exists in database and start loading latest chat
     const loadUserChat = async () => {
       try {
-        console.log('User authenticated, loading latest chat for user_id:', user.sub);
+        console.log('User authenticated, ensuring user exists for user_id:', user.sub);
+        
+        // Step 2a: Ensure user exists in database (create if new user)
+        const userResult = await API.ensureUser();
+        console.log('User ensured in database:', userResult.created ? 'Created new user' : 'Updated existing user');
         
         // Step 3: Load latest chat_id for this user
         const chats = await API.getChats(user.sub!);
