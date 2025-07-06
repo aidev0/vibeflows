@@ -474,6 +474,7 @@ const Dashboard = () => {
         // Step 2a: Ensure user exists in database (create if new user)
         const userResult = await API.ensureUser();
         console.log('User ensured in database:', userResult.created ? 'Created new user' : 'Updated existing user');
+        console.log('User last_login updated to:', userResult.user?.last_login);
         
         // Step 3: Load latest chat_id for this user
         const chats = await API.getChats(user.sub!);

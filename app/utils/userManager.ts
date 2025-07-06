@@ -50,7 +50,7 @@ export async function ensureUserExists(auth0User: any): Promise<UserProfile> {
         { $set: updateData }
       );
       
-      console.log('Updated existing user:', auth0User.sub);
+      console.log(`Updated existing user: ${auth0User.sub} - last_login: ${updateData.last_login}`);
       return { ...existingUser, ...updateData };
     } else {
       // Create new user
@@ -118,6 +118,33 @@ export async function updateUser(userId: string, updateData: Partial<UserProfile
     return result.modifiedCount > 0;
   } catch (error) {
     console.error('Error updating user:', error);
+    return false;
+  }
+}
+
+/**
+ * Update only the last_login timestamp for a user
+ * @param userId - Auth0 user ID (sub)
+ * @returns Promise<boolean> - Success status
+ */
+export async function updateLastLogin(userId: string): Promise<boolean> {
+  try {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    const result = await db.collection('users').updateOne(
+      { user_id: userId },
+      { 
+        $set: {
+          last_login: now,
+          updated_at: now
+        }
+      }
+    );
+    
+    console.log(`Updated last_login for user: ${userId} at ${now}`);
+    return result.modifiedCount > 0;
+  } catch (error) {
+    console.error('Error updating last_login:', error);
     return false;
   }
 }
