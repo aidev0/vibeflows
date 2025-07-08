@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
+import { getSession } from '@auth0/nextjs-auth0';
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     const latest = searchParams.get('latest');
+    
+    // Check if user is authenticated
+    const session = await getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    // Check if requesting user's own flows or admin accessing any user's flows
+    const ADMIN_ID = process.env.ADMIN_ID;
+    const isAdmin = ADMIN_ID && session.user.sub === ADMIN_ID;
+    
+    // If userId is provided and user is not admin, they can only access their own flows
+    if (userId && userId !== session.user.sub && !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden - Cannot access other users flows' }, { status: 403 });
+    }
     
     const db = await getDb();
     
@@ -34,8 +50,12 @@ export async function GET(request: Request) {
       return NextResponse.json(flows);
     }
     
-    // Default: get all flows
-    const flows = await db.collection('flows').find({}).toArray();
+    // Default: get flows for current user (or all flows if admin and no userId specified)
+    const query = isAdmin ? {} : { user_id: session.user.sub };
+    const flows = await db.collection('flows')
+      .find(query)
+      .sort({ updated_at: -1, created_at: -1 })
+      .toArray();
     
     return NextResponse.json(flows);
   } catch (error) {

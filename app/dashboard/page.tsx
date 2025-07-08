@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe, Zap, ExternalLink } from 'lucide-react';
+import { Network, Bot, Play, Settings, Search, Plus, Circle, Code, Maximize2, Minimize2, Maximize, Send, MessageCircle, FunctionSquare, User, LogOut, LogIn, GitBranch, Menu, X, Key, Globe, Zap, ExternalLink, Users } from 'lucide-react';
 import GraphPanel from '../components/GraphPanel';
 import N8nWorkflowViewer from '../components/N8nWorkflowViewer';
 import KeysManager from '../components/KeysManager';
+import UsersPanel from '../components/UsersPanel';
 import ChatInput from '../components/ChatInput';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -99,6 +100,7 @@ const Dashboard = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showKeysManager, setShowKeysManager] = useState(false);
   const [showApiManager, setShowApiManager] = useState(false);
+  const [showUsersPanel, setShowUsersPanel] = useState(false);
   const [search, setSearch] = useState('');
   const [maximizedSection, setMaximizedSection] = useState<'none' | 'left' | 'graph' | 'chat'>('none');
   const [currentChat, setCurrentChat] = useState<any>(null);
@@ -114,6 +116,9 @@ const Dashboard = () => {
   const [deviceType, setDeviceType] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
   const graphRef = useRef<{ fitView: () => void }>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Check if current user is admin - we'll use a runtime check instead
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Enhanced device detection with orientation support
   useEffect(() => {
@@ -475,6 +480,17 @@ const Dashboard = () => {
         const userResult = await API.ensureUser();
         console.log('User ensured in database:', userResult.created ? 'Created new user' : 'Updated existing user');
         console.log('User last_login updated to:', userResult.user?.last_login);
+        
+        // Step 2b: Check if user is admin (try to fetch all users - will only work for admins)
+        try {
+          const adminCheck = await fetch('/api/users?action=all');
+          setIsAdmin(adminCheck.ok);
+          if (adminCheck.ok) {
+            console.log('User has admin privileges');
+          }
+        } catch (error) {
+          setIsAdmin(false);
+        }
         
         // Step 3: Load latest chat_id for this user
         const chats = await API.getChats(user.sub!);
@@ -1044,6 +1060,19 @@ const Dashboard = () => {
             <span className="relative z-10">Keys</span>
           </button>
 
+          {/* Users Button - Admin Only */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowUsersPanel(true)}
+              className="group relative px-3 md:px-6 py-2 md:py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-300 
+                flex items-center gap-1 md:gap-2 overflow-hidden
+                bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg shadow-red-500/30 hover:scale-105"
+            >
+              <Users size={16} className="text-white" />
+              <span className="relative z-10">Users</span>
+            </button>
+          )}
+
         </div>
         
         {/* User menu */}
@@ -1152,6 +1181,20 @@ const Dashboard = () => {
                   <Key size={20} className="text-yellow-400" />
                   API Keys
                 </button>
+                
+                {/* Users Button - Admin Only (Mobile) */}
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setShowUsersPanel(true);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-4 px-6 py-5 rounded-xl font-semibold text-lg bg-red-600/20 text-red-200 hover:bg-red-500/30 border border-red-500/30 hover:border-red-400/50 transition-all duration-300 shadow-lg"
+                  >
+                    <Users size={20} className="text-red-400" />
+                    Users Management
+                  </button>
+                )}
                 
                 
                 {/* User Section */}
@@ -1776,6 +1819,11 @@ const Dashboard = () => {
       {/* Keys Manager Modal */}
       {showKeysManager && (
         <KeysManager onClose={() => setShowKeysManager(false)} />
+      )}
+
+      {/* Users Panel Modal - Admin Only */}
+      {showUsersPanel && (
+        <UsersPanel onClose={() => setShowUsersPanel(false)} />
       )}
 
       {/* Persistent Chat Input - Only visible when chat is not maximized on mobile */}

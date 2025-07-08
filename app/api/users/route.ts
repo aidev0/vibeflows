@@ -24,6 +24,26 @@ export async function GET(request: Request) {
         return NextResponse.json({ user });
       }
       
+      case 'all': {
+        // Get all users (admin only)
+        const ADMIN_ID = process.env.ADMIN_ID;
+        
+        if (!ADMIN_ID || session.user.sub !== ADMIN_ID) {
+          console.log('Unauthorized access to all users:', session.user.sub, 'is not admin:', ADMIN_ID);
+          return NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 });
+        }
+        
+        // Fetch all users from database
+        const db = await (await import('@/app/lib/mongodb')).getDb();
+        const users = await db.collection('users')
+          .find({})
+          .sort({ last_login: -1 })
+          .toArray();
+        
+        console.log(`Admin ${session.user.sub} fetched ${users.length} users`);
+        return NextResponse.json({ users });
+      }
+      
       case 'get':
       default: {
         // Get existing user
