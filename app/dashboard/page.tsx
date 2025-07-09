@@ -501,7 +501,9 @@ const Dashboard = () => {
           const latestChat = chats[0];
           setCurrentChat(latestChat);
           
+          console.log('📖 Loading messages for chat:', latestChat._id);
           const messages = await API.getMessages(latestChat._id);
+          console.log('📖 Raw messages from database:', messages);
           const formattedMessages = messages.map((msg: any) => ({
             id: msg._id,
             text: msg.text || msg.content || '',
@@ -510,7 +512,7 @@ const Dashboard = () => {
           }));
           setMessages(formattedMessages);
           
-          console.log('Loaded latest chat with', formattedMessages.length, 'messages');
+          console.log('Loaded latest chat with', formattedMessages.length, 'messages:', formattedMessages);
         } else {
           // Step 5: No chat_id exists → create one
           console.log('No existing chat found, creating new chat');
@@ -574,12 +576,19 @@ const Dashboard = () => {
         await updateUserSession(sessionId, { chat_id: newChat._id });
       }
       
+      // Create and save greeting message to database
+      const greetingText = 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.';
+      console.log('💾 Saving greeting message to database for chat:', newChat._id);
+      const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant');
+      console.log('✅ Greeting message saved:', savedMessage);
+      
       setMessages([{
-        id: '1',
-        text: 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.',
+        id: savedMessage._id || '1',
+        text: greetingText,
         sender: 'assistant',
-        timestamp: new Date()
+        timestamp: new Date(savedMessage.created_at || new Date())
       }]);
+      console.log('✅ UI updated with greeting message');
     } catch (error) {
       console.error('Error creating new chat:', error);
     }
