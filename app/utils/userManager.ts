@@ -50,7 +50,6 @@ export async function ensureUserExists(auth0User: any): Promise<UserProfile> {
         { $set: updateData }
       );
       
-      console.log(`Updated existing user: ${auth0User.sub} - last_login: ${updateData.last_login}`);
       return { ...existingUser, ...updateData };
     } else {
       // Create new user
@@ -70,12 +69,10 @@ export async function ensureUserExists(auth0User: any): Promise<UserProfile> {
       };
       
       const result = await usersCollection.insertOne(newUser);
-      console.log('Created new user:', auth0User.sub, 'with _id:', result.insertedId);
       
       return { ...newUser, _id: result.insertedId };
     }
   } catch (error) {
-    console.error('Error ensuring user exists:', error);
     throw error;
   }
 }
@@ -91,7 +88,6 @@ export async function getUserById(userId: string): Promise<UserProfile | null> {
     const user = await db.collection('users').findOne({ user_id: userId });
     return user as UserProfile | null;
   } catch (error) {
-    console.error('Error fetching user:', error);
     return null;
   }
 }
@@ -117,7 +113,6 @@ export async function updateUser(userId: string, updateData: Partial<UserProfile
     
     return result.modifiedCount > 0;
   } catch (error) {
-    console.error('Error updating user:', error);
     return false;
   }
 }
@@ -141,10 +136,8 @@ export async function updateLastLogin(userId: string): Promise<boolean> {
       }
     );
     
-    console.log(`Updated last_login for user: ${userId} at ${now}`);
     return result.modifiedCount > 0;
   } catch (error) {
-    console.error('Error updating last_login:', error);
     return false;
   }
 }

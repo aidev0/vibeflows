@@ -46,11 +46,9 @@ const UserAvatar: React.FC<{
         alt={alt}
         className={`${sizeClasses} rounded-full object-cover border-2 ${borderColor} ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-200`}
         onLoad={() => {
-          console.log('Image loaded successfully:', src);
           setImageLoading(false);
         }}
         onError={(e) => {
-          console.log('Image failed to load:', src);
           setImageError(true);
           setImageLoading(false);
         }}
@@ -125,7 +123,6 @@ const UsersPanel: React.FC<UsersPanelProps> = ({ onClose }) => {
       const data = await response.json();
       setUsers(data.users || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
       alert('Failed to fetch users. You may not have admin access.');
     } finally {
       setLoading(false);
@@ -144,7 +141,6 @@ const UsersPanel: React.FC<UsersPanelProps> = ({ onClose }) => {
       const chats = await response.json();
       setUserChats(chats || []);
     } catch (error) {
-      console.error('Error fetching user chats:', error);
       setUserChats([]);
     } finally {
       setLoadingChats(false);
@@ -163,7 +159,6 @@ const UsersPanel: React.FC<UsersPanelProps> = ({ onClose }) => {
       const workflows = await response.json();
       setUserWorkflows(workflows || []);
     } catch (error) {
-      console.error('Error fetching user workflows:', error);
       setUserWorkflows([]);
     } finally {
       setLoadingWorkflows(false);

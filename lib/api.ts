@@ -131,12 +131,12 @@ class APIClient {
 
   async deleteFlow(id: string): Promise<void> {
     // Mock implementation
-    console.log('Deleting flow:', id);
+    // Flow deletion logic would go here
   }
 
   async deleteAgent(id: string): Promise<void> {
     // Mock implementation
-    console.log('Deleting agent:', id);
+    // Agent deletion logic would go here
   }
 }
 

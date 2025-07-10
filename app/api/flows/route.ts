@@ -59,7 +59,6 @@ export async function GET(request: Request) {
     
     return NextResponse.json(flows);
   } catch (error) {
-    console.error('Error fetching flows:', error);
     return NextResponse.json({ error: 'Failed to fetch flows' }, { status: 500 });
   }
 }
@@ -84,7 +83,6 @@ export async function POST(request: Request) {
     
     return NextResponse.json(newFlow, { status: 201 });
   } catch (error) {
-    console.error('Error creating flow:', error);
     return NextResponse.json({ error: 'Failed to create flow' }, { status: 500 });
   }
 } 

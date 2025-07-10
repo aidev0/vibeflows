@@ -30,7 +30,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ keys: userKeys });
 
   } catch (error) {
-    console.error('Error fetching user keys:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -60,7 +59,6 @@ export async function POST(request: Request) {
     const db = await getDb();
     const result = await db.collection('credentials').insertOne(keyData);
     
-    console.log('User key saved:', { ...keyData, value: '[HIDDEN]' });
 
     return NextResponse.json({ 
       success: true, 
@@ -69,7 +67,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error saving user key:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -104,7 +101,6 @@ export async function PUT(request: Request) {
       { $set: updateData }
     );
 
-    console.log('User key updated:', { key_id, ...updateData, value: updateData.value ? '[HIDDEN]' : undefined });
 
     return NextResponse.json({ 
       success: true,
@@ -112,7 +108,6 @@ export async function PUT(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error updating user key:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -139,7 +134,6 @@ export async function DELETE(request: Request) {
       user_id: session.user.sub
     });
 
-    console.log('User key deleted:', key_id);
 
     return NextResponse.json({ 
       success: true,
@@ -147,7 +141,6 @@ export async function DELETE(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error deleting user key:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -66,14 +66,10 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
       const response = await fetch('/api/credentials');
       if (response.ok) {
         const data = await response.json();
-        console.log('Fetched credentials data:', data);
-        console.log('Individual keys:', data.keys);
         setKeys(data.keys || []);
-      } else {
-        console.error('Failed to fetch credentials:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error fetching keys:', error);
+      // Error fetching keys
     } finally {
       setLoading(false);
     }
@@ -102,7 +98,6 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
         alert(`Error: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error saving key:', error);
       alert('Error saving key');
     }
   };
@@ -122,13 +117,11 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
         alert(`Error: ${error.message}`);
       }
     } catch (error) {
-      console.error('Error deleting key:', error);
       alert('Error deleting key');
     }
   };
 
   const handleEdit = (key: UserKey) => {
-    console.log('Editing key:', key);
     const value = key.key_value || '';
     const stringValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
     
@@ -383,10 +376,6 @@ const KeysManager: React.FC<KeysManagerProps> = ({ onClose }) => {
           )}
 
           {/* Keys List */}
-          <div className="mb-4">
-            <p className="text-sm text-gray-400">Debug: Keys array length: {keys.length}</p>
-            <p className="text-sm text-gray-400">Debug: Loading state: {loading.toString()}</p>
-          </div>
           
           {loading ? (
             <div className="text-center py-8">

@@ -50,11 +50,6 @@ const API = {
     return response.json();
   },
   callAIAutomation: async (user_query: string, chat_id?: string, user_id?: string) => {
-    console.log('=== CALLING AI AUTOMATION ENDPOINT ===');
-    console.log('user_query:', user_query);
-    console.log('chat_id:', chat_id);
-    console.log('user_id:', user_id);
-    console.log('Full payload:', { user_query, chat_id, user_id });
     
     const response = await fetch('/api/ai/stream', {
       method: 'POST',
@@ -160,14 +155,7 @@ const Dashboard = () => {
       setDeviceType(deviceCategory);
       setOrientation(currentOrientation);
       
-      console.log('Device detection:', {
-        width,
-        height,
-        deviceCategory,
-        orientation: currentOrientation,
-        isTouchDevice,
-        isMobileUserAgent
-      });
+      // Device detection complete
     };
     
     detectDevice();
@@ -212,25 +200,11 @@ const Dashboard = () => {
     };
   }, [isMobile]);
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Auth0 user data:', { user, isLoading, error });
-    if (user) {
-      console.log('User object keys:', Object.keys(user));
-      console.log('User properties:', {
-        name: user.name,
-        email: user.email,
-        nickname: user.nickname,
-        given_name: user.given_name,
-        family_name: user.family_name,
-        sub: user.sub
-      });
-    }
-  }, [user, isLoading, error]);
+  // Auth0 user data is now available
 
   // Reset and reload function
   const resetAndReload = async () => {
-    console.log('🔄 Resetting and reloading data...');
+    // Resetting and reloading data...
     setLoading(true);
     setSelectedItem(null);
     setFlows([]);
@@ -241,8 +215,7 @@ const Dashboard = () => {
     setTimeout(async () => {
       const fetchData = async () => {
         try {
-          console.log('🔄 Fetching fresh data for activeTab:', activeTab);
-          console.log('🔄 User ID:', user?.sub);
+          // Fetching fresh data for activeTab
           
           let data;
           if (activeTab === 'flows') {
@@ -253,26 +226,26 @@ const Dashboard = () => {
             data = await API.getN8nWorkflows(user?.sub || undefined);
           }
             
-          console.log('🔄 Fresh data received:', data);
+          // Fresh data received
           const arrayData = Array.isArray(data) ? data : [];
           
           if (activeTab === 'flows') {
             setFlows(arrayData);
-            console.log('🔄 Flows set to:', arrayData.length, 'items');
+            // Flows set
           } else if (activeTab === 'agents') {
             setAgents(arrayData);
-            console.log('🔄 Agents set to:', arrayData.length, 'items');
+            // Agents set
           } else if (activeTab === 'n8n') {
             setN8nWorkflows(arrayData);
-            console.log('🔄 N8n workflows set to:', arrayData.length, 'items');
+            // N8n workflows set
           }
           
           if (arrayData.length > 0) {
-            console.log('🔄 Auto-selecting first item:', arrayData[0]);
+            // Auto-selecting first item
             setSelectedItem(arrayData[0]);
           }
         } catch (error) {
-          console.error('🔄 Error during reset and reload:', error);
+          // Error during reset and reload
         } finally {
           setLoading(false);
         }
@@ -295,14 +268,7 @@ const Dashboard = () => {
         selectedItem: selectedItem?.name || 'none'
       });
       
-      console.log('🔧 Debug functions available:');
-      console.log('  - loadLatestFlowForUser(userId)');
-      console.log('  - resetAndReload()');
-      console.log('  - debugState()');
-      
-      if (user?.sub) {
-        console.log(`🔧 To test latest flow: loadLatestFlowForUser("${user.sub}")`);
-      }
+      // Debug functions available: loadLatestFlowForUser(userId), resetAndReload(), debugState()
     }
   }, [user?.sub, activeTab, flows.length, agents.length, selectedItem]);
 
@@ -348,21 +314,21 @@ const Dashboard = () => {
   const loadLatestFlowForUser = async (userId: string) => {
     try {
       setLoading(true);
-      console.log('Manually loading latest flow for user:', userId);
+      // Manually loading latest flow for user
       
       const latestFlow = await API.getLatestFlow(userId);
-      console.log('Latest flow loaded for user:', latestFlow);
+      // Latest flow loaded for user
       
       if (latestFlow && !latestFlow.error) {
         setSelectedItem(latestFlow);
-        console.log('Successfully set latest flow as selected item');
+        // Successfully set latest flow as selected item
         return latestFlow;
       } else {
-        console.log('No flows found for user:', userId);
+        // No flows found for user
         return null;
       }
     } catch (error) {
-      console.error('Error loading latest flow for user:', error);
+      // Error loading latest flow for user
       return null;
     } finally {
       setLoading(false);
@@ -383,7 +349,7 @@ const Dashboard = () => {
           data = await API.getN8nWorkflows(user?.sub || undefined);
         }
         
-        console.log(`${activeTab} API response:`, data, 'Type:', typeof data, 'IsArray:', Array.isArray(data));
+        // API response received
         const arrayData = Array.isArray(data) ? data : [];
         
         if (activeTab === 'flows') {
@@ -397,9 +363,9 @@ const Dashboard = () => {
         // Auto-select latest flow for current user
         if (activeTab === 'flows' && user?.sub && arrayData.length > 0) {
           try {
-            console.log('Loading latest flow for user:', user.sub);
+            // Loading latest flow for user
             const latestFlow = await API.getLatestFlow(user.sub);
-            console.log('Latest flow loaded:', latestFlow);
+            // Latest flow loaded
             
             if (latestFlow && !latestFlow.error) {
               setSelectedItem(latestFlow);
@@ -411,7 +377,7 @@ const Dashboard = () => {
               }
             }
           } catch (latestFlowError) {
-            console.log('Error loading latest flow, using fallback:', latestFlowError);
+            // Error loading latest flow, using fallback
             // Fallback to manual selection logic
             const userItems = arrayData.filter((item: any) => item.user_id === user.sub);
             if (userItems.length > 0) {
@@ -449,7 +415,7 @@ const Dashboard = () => {
           }
         }
       } catch (err) {
-        console.error('Error fetching data:', err);
+        // Error fetching data
       } finally {
         setLoading(false);
       }
@@ -474,19 +440,18 @@ const Dashboard = () => {
     // Step 2: User authenticated - ensure user exists in database and start loading latest chat
     const loadUserChat = async () => {
       try {
-        console.log('User authenticated, ensuring user exists for user_id:', user.sub);
+        // User authenticated, ensuring user exists
         
         // Step 2a: Ensure user exists in database (create if new user)
         const userResult = await API.ensureUser();
-        console.log('User ensured in database:', userResult.created ? 'Created new user' : 'Updated existing user');
-        console.log('User last_login updated to:', userResult.user?.last_login);
+        // User ensured in database
         
         // Step 2b: Check if user is admin (try to fetch all users - will only work for admins)
         try {
           const adminCheck = await fetch('/api/users?action=all');
           setIsAdmin(adminCheck.ok);
           if (adminCheck.ok) {
-            console.log('User has admin privileges');
+            // User has admin privileges
           }
         } catch (error) {
           setIsAdmin(false);
@@ -494,16 +459,16 @@ const Dashboard = () => {
         
         // Step 3: Load latest chat_id for this user
         const chats = await API.getChats(user.sub!);
-        console.log('User chats:', chats);
+        // User chats loaded
         
         if (chats && chats.length > 0) {
           // Step 4: Load latest chat and its messages
           const latestChat = chats[0];
           setCurrentChat(latestChat);
           
-          console.log('📖 Loading messages for chat:', latestChat._id);
+          // Loading messages for chat
           const messages = await API.getMessages(latestChat._id);
-          console.log('📖 Raw messages from database:', messages);
+          // Raw messages from database loaded
           const formattedMessages = messages.map((msg: any) => ({
             id: msg._id,
             text: msg.text || msg.content || '',
@@ -512,10 +477,10 @@ const Dashboard = () => {
           }));
           setMessages(formattedMessages);
           
-          console.log('Loaded latest chat with', formattedMessages.length, 'messages:', formattedMessages);
+          // Loaded latest chat with messages
         } else {
           // Step 5: No chat_id exists → create one
-          console.log('No existing chat found, creating new chat');
+          // No existing chat found, creating new chat
           const chatTitle = `Welcome ${user.name || user.nickname || 'User'}`;
           const newChat = await API.createChat(chatTitle, user.sub!);
           setCurrentChat(newChat);
@@ -531,7 +496,7 @@ const Dashboard = () => {
             timestamp: new Date(savedMessage.created_at || new Date())
           }]);
           
-          console.log('Created new chat with greeting message');
+          // Created new chat with greeting message
         }
         
         // Create user session after chat is loaded
@@ -546,7 +511,7 @@ const Dashboard = () => {
         setSessionId(sessionId);
         
       } catch (error) {
-        console.error('Error in user login flow:', error);
+        // Error in user login flow
       }
     };
     
@@ -556,12 +521,12 @@ const Dashboard = () => {
 
   const createNewChat = async (userQuery?: string) => {
     if (!user?.sub) {
-      console.log('User not authenticated');
+      // User not authenticated
       return;
     }
 
     try {
-      console.log('Creating new chat for user_id:', user?.sub);
+      // Creating new chat for user
       
       let chatTitle = userQuery || `New Chat ${new Date().toLocaleDateString()}`;
       
@@ -578,9 +543,9 @@ const Dashboard = () => {
       
       // Create and save greeting message to database
       const greetingText = 'Welcome to VibeFlows! I can help you create flows, manage agents, and optimize your marketing automation.';
-      console.log('💾 Saving greeting message to database for chat:', newChat._id);
+      // Saving greeting message to database
       const savedMessage = await API.sendMessage(newChat._id, greetingText, 'assistant');
-      console.log('✅ Greeting message saved:', savedMessage);
+      // Greeting message saved
       
       setMessages([{
         id: savedMessage._id || '1',
@@ -588,9 +553,9 @@ const Dashboard = () => {
         sender: 'assistant',
         timestamp: new Date(savedMessage.created_at || new Date())
       }]);
-      console.log('✅ UI updated with greeting message');
+      // UI updated with greeting message
     } catch (error) {
-      console.error('Error creating new chat:', error);
+      // Error creating new chat
     }
   };
 
@@ -610,10 +575,10 @@ const Dashboard = () => {
         // Auto-select the latest (first) workflow
         if (workflows.length > 0) {
           setSelectedItem(workflows[0]);
-          console.log('Auto-selected latest n8n workflow:', workflows[0].name);
+          // Auto-selected latest n8n workflow
         }
       } catch (error) {
-        console.error('Error loading n8n workflows:', error);
+        // Error loading n8n workflows
       }
     }
   };
@@ -622,7 +587,7 @@ const Dashboard = () => {
   const sendMessage = async (messageText: string) => {
     if (messageText.trim() && !isStreaming) {
       if (!user?.sub) {
-        console.log('User not authenticated');
+        // User not authenticated
         return;
       }
       const userMessage = {
@@ -688,11 +653,14 @@ const Dashboard = () => {
                     }
                     
                     const data = JSON.parse(jsonStr);
+                    // Parsed streaming data
                     
-                    // Handle different message types from your AI server
+                    // Handle different response formats
+                    let messageToAdd = '';
+                    
                     if (data.type && data.message) {
-                      console.log(`[${data.type}] "${data.message}"`); // Debug logging
-                      let messageToAdd = '';
+                      // Original format with type and message
+                      // Processing message
                       
                       // Mobile-optimized message filtering
                       if (isMobile) {
@@ -808,9 +776,27 @@ const Dashboard = () => {
                           }
                         }
                       }
+                    } else if (data.content) {
+                      // Claude API format with content field
+                      messageToAdd = data.content;
+                      accumulatedText += messageToAdd;
+                      updateMessage(accumulatedText);
+                    } else if (data.message) {
+                      // Simple message format without type
+                      messageToAdd = data.message;
+                      accumulatedText += messageToAdd;
+                      updateMessage(accumulatedText);
+                    } else if (typeof data === 'string') {
+                      // Plain string response
+                      messageToAdd = data;
+                      accumulatedText += messageToAdd;
+                      updateMessage(accumulatedText);
+                    } else {
+                      // Unknown format - log for debugging
+                      // Unknown streaming response format
                     }
                   } catch (parseError) {
-                    console.warn('Failed to parse streaming data:', line, parseError);
+                    // Failed to parse streaming data
                     // Continue processing other lines instead of breaking
                   }
                 }
@@ -828,7 +814,7 @@ const Dashboard = () => {
                   }
                 }
               } catch (parseError) {
-                console.warn('Failed to parse final buffer:', buffer, parseError);
+                // Failed to parse final buffer
               }
             }
             
@@ -838,7 +824,7 @@ const Dashboard = () => {
         } else {
           // Handle non-OK response
           const errorText = await response.text();
-          console.error('API Error:', response.status, errorText);
+          // API Error
           
           const errorMessage = {
             id: (Date.now() + 1).toString(),
@@ -849,7 +835,7 @@ const Dashboard = () => {
           setMessages(prev => [...prev, errorMessage]);
         }
       } catch (error) {
-        console.error('Error sending message:', error);
+        // Error sending message
         
         // Add error message to chat
         const errorMessage = {
@@ -1436,17 +1422,10 @@ const Dashboard = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation(); // Prevent selecting the item
-                                console.log('Clicked workflow item:', item);
-                                console.log('URL field:', item?.url);
-                                console.log('n8n_response:', item?.n8n_response);
-                                console.log('workflow_json:', item?.workflow_json);
-                                
                                 if (item?.url) {
-                                  console.log('Opening URL:', item.url);
                                   window.open(item.url, '_blank', 'noopener,noreferrer');
                                 } else {
-                                  console.log('No URL available for workflow:', item);
-                                  alert('No n8n URL configured for this workflow. Check console for details.');
+                                  alert('No n8n URL configured for this workflow.');
                                 }
                               }}
                               className="p-1 rounded hover:bg-gray-600 transition-colors"

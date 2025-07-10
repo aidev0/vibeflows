@@ -72,14 +72,11 @@ export const createUserSession = async (options?: {
 
     if (response.ok) {
       const data = await response.json();
-      console.log('Session created:', data);
       return data.session_id;
     } else {
-      console.error('Failed to create session:', response.statusText);
       return null;
     }
   } catch (error) {
-    console.error('Error creating session:', error);
     return null;
   }
 };
@@ -99,14 +96,11 @@ export const updateUserSession = async (session_id: string, updates: {
     });
 
     if (response.ok) {
-      console.log('Session updated:', updates);
       return true;
     } else {
-      console.error('Failed to update session:', response.statusText);
       return false;
     }
   } catch (error) {
-    console.error('Error updating session:', error);
     return false;
   }
 };
@@ -145,7 +139,6 @@ export const getUserSessions = async () => {
     }
     return { sessions: [] };
   } catch (error) {
-    console.error('Error fetching sessions:', error);
     return { sessions: [] };
   }
 };

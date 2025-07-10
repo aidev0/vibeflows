@@ -28,7 +28,7 @@ const Dashboard = () => {
         const data = tab === 'flows' ? await API.getFlows() : await API.getAgents();
         tab === 'flows' ? setFlows(data) : setAgents(data);
       } catch (err) {
-        console.error(err);
+        // Error handling - could add user notification here
       } finally {
         setLoading(false);
       }

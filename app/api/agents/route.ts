@@ -8,7 +8,6 @@ export async function GET() {
     
     return NextResponse.json(agents);
   } catch (error) {
-    console.error('Error fetching agents:', error);
     return NextResponse.json({ error: 'Failed to fetch agents' }, { status: 500 });
   }
 }
@@ -33,7 +32,6 @@ export async function POST(request: Request) {
     
     return NextResponse.json(newAgent, { status: 201 });
   } catch (error) {
-    console.error('Error creating agent:', error);
     return NextResponse.json({ error: 'Failed to create agent' }, { status: 500 });
   }
 } 

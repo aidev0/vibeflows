@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     // Save to MongoDB user_sessions collection
     const db = await getDb();
     const result = await db.collection('user_sessions').insertOne(sessionData);
-    console.log('User session saved to MongoDB:', { session_id: sessionData.session_id, insertedId: result.insertedId });
 
     return NextResponse.json({ 
       success: true, 
@@ -49,7 +48,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error creating user session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -71,7 +69,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ sessions: userSessions });
 
   } catch (error) {
-    console.error('Error fetching user sessions:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
@@ -100,7 +97,6 @@ export async function PATCH(request: NextRequest) {
       { $set: updateData }
     );
 
-    console.log('Session updated in MongoDB:', { session_id, updateData });
 
     return NextResponse.json({ 
       success: true,
@@ -108,7 +104,6 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating user session:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

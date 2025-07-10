@@ -2,30 +2,16 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
 
 export async function POST(request: Request) {
-  console.log('=== BASIC TEST: POST request received ===');
-  console.log('Time:', new Date().toISOString());
-  console.log('🚀 /api/ai/stream endpoint hit!');
   
   try {
-    console.log('🔍 About to parse request body...');
     const { user_query, chat_id, user_id } = await request.json();
-    console.log('✅ Request body parsed successfully');
-    
-    console.log('📝 Request payload:', { 
-      user_query, 
-      chat_id, 
-      user_id,
-      timestamp: new Date().toISOString()
-    });
     
     if (!user_query) {
-      console.error('❌ Missing user_query in request');
       return NextResponse.json({ error: 'user_query is required' }, { status: 400 });
     }
 
     // Save user message to database if chat_id is provided
     if (chat_id) {
-      console.log('💾 Saving user message to database...');
       const db = await getDb();
       await db.collection('messages').insertOne({
         chat_id: chat_id,
@@ -35,16 +21,11 @@ export async function POST(request: Request) {
         type: 'text',
         created_at: new Date()
       });
-      console.log('✅ User message saved to database');
-    } else {
-      console.log('⚠️ No chat_id provided, skipping database save');
     }
 
     // Forward request to local AI API on port 8000
-    console.log('📤 Sending payload to AI service:', { user_query, chat_id, user_id });
     const VIBEFLOWS_AI_API_URL = process.env.VIBEFLOWS_AI_API_URL;
     const AI_API_URL = `${VIBEFLOWS_AI_API_URL}/api/ai/stream`
-    console.log('🔄 Attempting to connect to AI service on', AI_API_URL);
     const aiResponse = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
@@ -58,17 +39,11 @@ export async function POST(request: Request) {
       }),
     });
 
-    console.log('📊 AI service response status:', aiResponse.status);
-    console.log('📋 AI service response headers:', Object.fromEntries(aiResponse.headers.entries()));
     
     if (!aiResponse.ok) {
-      console.error(`❌ AI API responded with status: ${aiResponse.status}`);
       const errorText = await aiResponse.text();
-      console.error('💥 AI API error response:', errorText);
       throw new Error(`AI API responded with status: ${aiResponse.status} - ${errorText}`);
     }
-
-    console.log('✅ AI service connection successful, starting stream...');
 
     // Create a transform stream to handle the AI response and save to database
     const encoder = new TextEncoder();
@@ -78,11 +53,9 @@ export async function POST(request: Request) {
 
     const stream = new ReadableStream({
       async start(controller) {
-        console.log('🌊 Stream started');
         const reader = aiResponse.body?.getReader();
         
         if (!reader) {
-          console.error('❌ No response stream available from AI service');
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
             type: "thought_stream", 
             message: "No response stream available", 
@@ -99,8 +72,6 @@ export async function POST(request: Request) {
             const { done, value } = await reader.read();
             
             if (done) {
-              console.log('🏁 Stream finished');
-              console.log('📝 Full AI response length:', fullAIResponse.length);
               
               // Process any remaining buffer content
               if (buffer.trim()) {
@@ -116,7 +87,6 @@ export async function POST(request: Request) {
                         }
                       }
                     } catch (e: any) {
-                      console.warn(`⚠️ Could not parse final buffer line: ${line}`, e.message);
                     }
                   }
                 }
@@ -124,7 +94,6 @@ export async function POST(request: Request) {
               
               // Save complete AI response to database if chat_id is provided
               if (chat_id && fullAIResponse) {
-                console.log('💾 Saving AI response to database...');
                 const db = await getDb();
                 await db.collection('messages').insertOne({
                   chat_id: chat_id,
@@ -134,7 +103,6 @@ export async function POST(request: Request) {
                   type: 'text',
                   created_at: new Date()
                 });
-                console.log('✅ AI response saved to database');
               }
               
               controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
@@ -143,7 +111,6 @@ export async function POST(request: Request) {
             }
 
             chunkCount++;
-            console.log(`📦 Processing chunk ${chunkCount}`);
             
             // Decode the chunk from AI API and add to buffer
             const chunk = decoder.decode(value, { stream: true });
@@ -163,7 +130,7 @@ export async function POST(request: Request) {
                     // Validate JSON before forwarding
                     const data = JSON.parse(jsonStr);
                     
-                    // Forward all valid message types (not just thought_stream)
+                    // Ensure all messages have a type field
                     if (data.type && typeof data.message === 'string') {
                       // Forward the properly formatted line
                       controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
@@ -172,20 +139,29 @@ export async function POST(request: Request) {
                       if (data.type === 'thought_stream') {
                         fullAIResponse += data.message;
                       }
+                    } else if (data.message && !data.type) {
+                      // Add default type for messages without type
+                      const messageWithType = { ...data, type: 'thought_stream' };
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(messageWithType)}\n\n`));
+                      
+                      // Accumulate message content
+                      if (typeof data.message === 'string') {
+                        fullAIResponse += data.message;
+                      }
+                    } else {
+                      // Don't forward malformed data
                     }
                   } else if (jsonStr === '[DONE]') {
                     // Forward the done signal
                     controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
                   }
                 } catch (e: any) {
-                  console.warn(`⚠️ Could not parse chunk line: ${line}`, e.message);
                   // Don't forward malformed data
                 }
               }
             }
           }
         } catch (error) {
-          console.error('💥 Error reading AI stream:', error);
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
             type: "thought_stream", 
             message: "Stream error occurred", 
@@ -196,7 +172,6 @@ export async function POST(request: Request) {
       }
     });
 
-    console.log('📡 Returning stream response to client');
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/event-stream',
@@ -209,11 +184,22 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
-    console.error('💥 Error in /api/ai/stream:', error);
-    console.error('🔍 Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    
+    // Return error response to client
+    return new Response(
+      `data: ${JSON.stringify({ 
+        type: "error", 
+        message: `AI service error: ${error.message}`, 
+        final: true 
+      })}\n\n`,
+      {
+        status: 200, // Keep as 200 for streaming
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      }
+    );
   }
 } 

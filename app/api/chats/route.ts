@@ -28,7 +28,6 @@ export async function GET(request: Request) {
     
     return NextResponse.json(chats);
   } catch (error) {
-    console.error('Error fetching chats:', error);
     return NextResponse.json({ error: 'Failed to fetch chats' }, { status: 500 });
   }
 }
@@ -53,7 +52,6 @@ export async function POST(request: Request) {
     
     return NextResponse.json(newChat, { status: 201 });
   } catch (error) {
-    console.error('Error creating chat:', error);
     return NextResponse.json({ error: 'Failed to create chat' }, { status: 500 });
   }
 } 
