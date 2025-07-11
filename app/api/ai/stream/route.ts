@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/app/lib/mongodb';
 
 export async function POST(request: Request) {
+  console.log('=== [AI Stream] POST REQUEST STARTED ===');
+  console.log('[AI Stream] Request URL:', request.url);
+  console.log('[AI Stream] Request method:', request.method);
   
   try {
-    const { user_query, chat_id, user_id } = await request.json();
+    let requestBody;
+    try {
+      requestBody = await request.json();
+      console.log('[AI Stream] Raw request body:', requestBody);
+    } catch (parseError) {
+      console.error('[AI Stream] Failed to parse request JSON:', parseError);
+      throw parseError;
+    }
+    
+    const { user_query, chat_id, user_id } = requestBody;
+    console.log('[AI Stream] Parsed request:', { user_query: user_query?.substring(0, 50), chat_id, user_id });
     
     if (!user_query) {
+      console.error('[AI Stream] Missing user_query');
       return NextResponse.json({ error: 'user_query is required' }, { status: 400 });
     }
 
@@ -25,25 +39,40 @@ export async function POST(request: Request) {
 
     // Forward request to local AI API on port 8000
     const VIBEFLOWS_AI_API_URL = process.env.VIBEFLOWS_AI_API_URL;
+    console.log('[AI Stream] AI API URL:', VIBEFLOWS_AI_API_URL);
+    
+    if (!VIBEFLOWS_AI_API_URL) {
+      console.error('[AI Stream] VIBEFLOWS_AI_API_URL environment variable not set');
+      throw new Error('AI service not configured');
+    }
+    
     const AI_API_URL = `${VIBEFLOWS_AI_API_URL}/api/ai/stream`
+    const aiRequestBody = {
+      user_query,
+      chat_id,
+      user_id
+    };
+    
+    console.log('[AI Stream] Forwarding to URL:', AI_API_URL);
+    console.log('[AI Stream] Request body:', JSON.stringify(aiRequestBody, null, 2));
+    
     const aiResponse = await fetch(AI_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'text/event-stream',
       },
-      body: JSON.stringify({
-        user_query,
-        chat_id,
-        user_id
-      }),
+      body: JSON.stringify(aiRequestBody),
     });
 
     
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
+      console.error('[AI Stream] AI API error:', aiResponse.status, errorText);
       throw new Error(`AI API responded with status: ${aiResponse.status} - ${errorText}`);
     }
+    
+    console.log('[AI Stream] AI response received, starting stream');
 
     // Create a transform stream to handle the AI response and save to database
     const encoder = new TextEncoder();
@@ -130,6 +159,12 @@ export async function POST(request: Request) {
                     // Validate JSON before forwarding
                     const data = JSON.parse(jsonStr);
                     
+                    // Validate data structure
+                    if (typeof data !== 'object' || data === null) {
+                      console.warn('[AI Stream] Skipping non-object data:', data);
+                      continue;
+                    }
+                    
                     // Ensure all messages have a type field
                     if (data.type && typeof data.message === 'string') {
                       // Forward the properly formatted line
@@ -184,6 +219,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error: any) {
+    console.error('[AI Stream] Error:', error.message);
     
     // Return error response to client
     return new Response(

@@ -585,11 +585,14 @@ const Dashboard = () => {
 
 
   const sendMessage = async (messageText: string) => {
+    console.log('[Dashboard] sendMessage called with:', messageText);
     if (messageText.trim() && !isStreaming) {
       if (!user?.sub) {
+        console.error('[Dashboard] User not authenticated');
         // User not authenticated
         return;
       }
+      console.log('[Dashboard] Sending message, currentChat:', currentChat?._id);
       const userMessage = {
         id: Date.now().toString(),
         text: messageText,
@@ -658,7 +661,7 @@ const Dashboard = () => {
                     // Handle different response formats
                     let messageToAdd = '';
                     
-                    if (data.type && data.message) {
+                    if (data && data.type && data.message) {
                       // Original format with type and message
                       // Processing message
                       
@@ -747,14 +750,14 @@ const Dashboard = () => {
                         
                         // Update UI less frequently for thought_stream to avoid choppy display
                         const now = Date.now();
-                        const isImportantMessage = ['iteration', 'final', 'tool_result'].includes(data.type);
+                        const isImportantMessage = data.type && ['iteration', 'final', 'tool_result'].includes(data.type);
                         const hasCompleteThought = data.type === 'thought_stream' && (/[.!?]\s*$/.test(messageToAdd) || messageToAdd.length > 10);
                         const enoughTimeElapsed = now - lastUpdateTime >= UPDATE_INTERVAL;
                         
                         // Mobile-optimized update frequency
                         if (isMobile) {
                           // Less frequent updates on mobile for cleaner experience
-                          if (data.type === 'thought_stream') {
+                          if (data.type && data.type === 'thought_stream') {
                             if (hasCompleteThought || now - lastUpdateTime >= 500) {
                               updateMessage(accumulatedText);
                               lastUpdateTime = now;
@@ -765,7 +768,7 @@ const Dashboard = () => {
                           }
                         } else {
                           // Desktop - normal frequency
-                          if (data.type === 'thought_stream') {
+                          if (data.type && data.type === 'thought_stream') {
                             if (hasCompleteThought || enoughTimeElapsed) {
                               updateMessage(accumulatedText);
                               lastUpdateTime = now;
@@ -824,17 +827,18 @@ const Dashboard = () => {
         } else {
           // Handle non-OK response
           const errorText = await response.text();
-          // API Error
+          console.error('[Dashboard] API Error:', response.status, errorText);
           
           const errorMessage = {
             id: (Date.now() + 1).toString(),
-            text: 'Sorry, I encountered an error. Please try again.',
+            text: `Sorry, I encountered an error (${response.status}). Please try again.`,
             sender: 'assistant' as const,
             timestamp: new Date()
           };
           setMessages(prev => [...prev, errorMessage]);
         }
       } catch (error) {
+        console.error('[Dashboard] Error sending message:', error);
         // Error sending message
         
         // Add error message to chat
